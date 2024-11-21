@@ -14,12 +14,12 @@ pub fn main() !void {
     const assembly_file = try createAssemblyFileName(source_file);
 
     const source_re = "int main\\s*\\(\\s*\\)\\s*{\\s*return\\s+(?<ret>[0-9]+)\\s*;\\s*}";
-    const assembly_format = \\
-        .globl _main
-_main:
-    movl    ${}, %eax
-    ret
-\\;
+    const assembly_format =
+        \\    .globl _main
+        \\ _main:
+        \\    movl    $%, %eax
+        \\    ret
+    ;
 
     var infile = try std.fs.cwd().openFile(source_file, .{ .read = true });
     defer infile.close();
@@ -60,4 +60,3 @@ fn createAssemblyFileName(source_file: []const u8) ![]u8 {
     const base_name = source_file[0..index];
     return std.mem.concat(u8, &[_][]const u8{ base_name, ".s" }, allocator);
 }
-
