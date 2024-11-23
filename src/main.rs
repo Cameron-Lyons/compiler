@@ -21,17 +21,14 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // Define the regex to match 'int main() { return X; }' and capture 'X'
     let source_re = r"int main\s*\(\s*\)\s*{\s*return\s+(?P<ret>[0-9]+)\s*;\s*}";
 
-    // Define the assembly format string
     let assembly_format = r".globl _main
 _main:
     movl    ${}, %eax
     ret
 ";
 
-    // Open the source file and read its contents
     let mut infile = match fs::File::open(source_file) {
         Ok(f) => f,
         Err(e) => {
@@ -42,10 +39,8 @@ _main:
     let mut source_data = String::new();
     infile.read_to_string(&mut source_data)?;
 
-    // Trim whitespace from the source code
     let source = source_data.trim();
 
-    // Compile the regex
     let re = match Regex::new(source_re) {
         Ok(r) => r,
         Err(e) => {
@@ -54,7 +49,6 @@ _main:
         }
     };
 
-    // Apply the regex to the source code
     if let Some(caps) = re.captures(source) {
         if let Some(ret_val) = caps.name("ret") {
             let ret_val_trimmed = ret_val.as_str().trim();
@@ -66,7 +60,6 @@ _main:
                 }
             };
 
-            // Open the output assembly file for writing
             let mut outfile = match fs::File::create(&assembly_file) {
                 Ok(f) => f,
                 Err(e) => {
@@ -74,7 +67,6 @@ _main:
                     return Ok(());
                 }
             };
-            // Write the assembly code to the output file
             let assembly_code = format!("{} {}", assembly_format, final_val);
             outfile.write_all(assembly_code.as_bytes())?;
         } else {
@@ -87,7 +79,6 @@ _main:
     Ok(())
 }
 
-// Function to create the assembly file name by replacing the source file extension with '.s'
 fn create_assembly_file_name(source_file: &str) -> io::Result<String> {
     if let Some(index) = source_file.rfind('.') {
         let base_name = &source_file[..index];
