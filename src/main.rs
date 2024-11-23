@@ -2,7 +2,6 @@ use regex::Regex;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::Path;
 
 fn main() -> io::Result<()> {
     // Parse command line arguments
@@ -76,7 +75,7 @@ _main:
                 }
             };
             // Write the assembly code to the output file
-            let assembly_code = format!(assembly_format, final_val);
+            let assembly_code = format!("{} {}", assembly_format, final_val);
             outfile.write_all(assembly_code.as_bytes())?;
         } else {
             eprintln!("Failed to extract return value");
