@@ -4,7 +4,6 @@ use std::fs;
 use std::io::{self, Read, Write};
 
 fn main() -> io::Result<()> {
-    // Parse command line arguments
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
