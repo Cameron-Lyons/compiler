@@ -23,10 +23,10 @@ fn main() -> io::Result<()> {
     let source_re = r"int main\s*\(\s*\)\s*{\s*return\s+(?P<ret>[0-9]+)\s*;\s*}";
 
     let assembly_format = r".globl _main
-_main:
-    movl    ${}, %eax
-    ret
-";
+                                  _main:
+                                  movl    ${}, %eax
+                                  ret
+                                  ";
 
     let mut infile = match fs::File::open(source_file) {
         Ok(f) => f,
