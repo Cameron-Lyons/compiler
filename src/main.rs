@@ -1,3 +1,4 @@
+mod code;
 use regex::Regex;
 use std::env;
 use std::fs;
