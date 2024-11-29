@@ -1,36 +1,31 @@
+
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+
 #[derive(Debug)]
-struct Definition {
-    name: &'static str,
-    operand_widths: &'static [usize],
+pub struct Definition {
+    pub name: &'static str,
+    pub operand_widths: &'static [usize],
 }
 
-static DEFINITIONS: &'static [(u8, Definition)] = &[(
-    1, // Example Opcode for OpConstant
-    Definition {
-        name: "OpConstant",
-        operand_widths: &[2],
-    },
-)];
+pub static DEFINITIONS: Lazy<HashMap<u8, Definition>> = Lazy::new(|| {
+    let mut definitions = HashMap::new();
 
-fn lookup(op: u8) -> Result<&'static Definition, String> {
-    // Attempt to find the opcode definition
-    for (opcode, def) in DEFINITIONS {
-        if *opcode == op {
-            return Ok(def);
-        }
-    }
-    Err(format!("opcode {} undefined", op))
-}
+    definitions.insert(
+        1,
+        Definition {
+            name: "OpConstant",
+            operand_widths: &[2],
+        },
+    );
 
-fn main() {
-    // Test the lookup function
-    match lookup(1) {
-        Ok(def) => println!("Found definition: {:?}", def),
-        Err(err) => println!("Error: {}", err),
-    }
+    definitions
+});
 
-    match lookup(2) {
-        Ok(def) => println!("Found definition: {:?}", def),
-        Err(err) => println!("Error: {}", err),
+pub fn lookup(op: u8) -> Result<&'static Definition, String> {
+    match DEFINITIONS.get(&op) {
+        Some(def) => Ok(def),
+        None => Err(format!("opcode {} undefined", op)),
     }
 }
+
