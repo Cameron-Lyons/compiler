@@ -16,7 +16,6 @@ mod tests {
                 operands: vec![65534],
                 expected: vec![OPCONSTANT, 255, 254],
             },
-            // You can add more test cases here
             TestCase {
                 op: OPCONSTANT,
                 operands: vec![1],
@@ -27,7 +26,6 @@ mod tests {
         for tt in tests {
             let instruction = make(tt.op, &tt.operands).expect("make function failed");
 
-            // Check instruction length
             assert_eq!(
                 instruction.len(),
                 tt.expected.len(),
@@ -36,7 +34,6 @@ mod tests {
                 instruction.len()
             );
 
-            // Check each byte
             for (i, byte) in tt.expected.iter().enumerate() {
                 assert_eq!(
                     instruction[i], *byte,

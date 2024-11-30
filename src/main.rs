@@ -1,21 +1,25 @@
-mod code;
+// main.rs
 
-#[cfg(test)]
-mod code_test;
+mod ast;
+mod code;
+mod compiler;
+mod object;
+
+use ast::Node;
+use compiler::Compiler;
 
 fn main() {
-    match code::lookup(1) {
-        Ok(def) => println!("Found definition: {:?}", def),
-        Err(err) => println!("Error: {}", err),
-    }
+    let mut compiler = Compiler::new();
+    let node = Node::IntegerLiteral(42); // Example AST node
 
-    match code::lookup(2) {
-        Ok(def) => println!("Found definition: {:?}", def),
-        Err(err) => println!("Error: {}", err),
-    }
-
-    match code::make(code::OPCONSTANT, &[65534]) {
-        Ok(instruction) => println!("Instruction: {:?}", instruction),
-        Err(err) => println!("Error: {}", err),
+    match compiler.compile(node) {
+        Ok(_) => {
+            let bytecode = compiler.bytecode();
+            println!("Instructions: {:?}", bytecode.instructions);
+            println!("Constants: {:?}", bytecode.constants);
+        }
+        Err(err) => {
+            eprintln!("Compilation error: {}", err);
+        }
     }
 }
