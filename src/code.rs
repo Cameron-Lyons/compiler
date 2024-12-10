@@ -1,5 +1,6 @@
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
+use std::fmt::{self, Write};
 
 pub type Opcode = u8;
 
@@ -25,14 +26,12 @@ pub static DEFINITIONS: Lazy<HashMap<Opcode, Definition>> = Lazy::new(|| {
     definitions
 });
 
-
 pub fn lookup(op: Opcode) -> Result<&'static Definition, String> {
     match DEFINITIONS.get(&op) {
         Some(def) => Ok(def),
         None => Err(format!("opcode {} undefined", op)),
     }
 }
-
 
 pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
     let def = lookup(op)?;
@@ -67,5 +66,53 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
 
     Ok(instruction)
 }
+pub type Instructions = Vec<u8>;
+impl Instructions {
+    pub fn to_pretty_string(&self) -> String {
+        let mut out = String::new();
 
+        let mut i = 0;
+        while i < self.len() {
+            let op = self[i];
+            match lookup(op) {
+                Ok(def) => {
+                    let (operands, read) = read_operands(def, &self[i + 1..]);
+                    let instr_str = self.fmt_instruction(def, &operands);
+                    let _ = writeln!(&mut out, "{:04} {}", i, instr_str);
+                    i += 1 + read;
+                }
+                Err(err) => {
+                    let _ = writeln!(&mut out, "ERROR: {}", err);
+                    i += 1;
+                }
+            }
+        }
 
+        out
+    }
+
+    fn fmt_instruction(&self, def: &Definition, operands: &[i32]) -> String {
+        let operand_count = def.operand_widths.len();
+
+        if operands.len() != operand_count {
+            return format!(
+                "ERROR: operand len {} does not match defined {}\n",
+                operands.len(),
+                operand_count
+            );
+        }
+
+        match operand_count {
+            1 => format!("{} {}", def.name, operands[0]),
+            _ => format!("ERROR: unhandled operandCount for {}\n", def.name),
+        }
+    }
+}
+
+// Optional: Implement Display for Instructions for convenience
+impl fmt::Display for Instructions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.to_pretty_string();
+        write!(f, "{}", s)
+    }
+}
