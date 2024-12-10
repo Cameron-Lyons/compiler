@@ -66,7 +66,39 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
 
     Ok(instruction)
 }
+
 pub type Instructions = Vec<u8>;
+
+fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i32>, usize) {
+    let mut operands = Vec::new();
+    let mut offset = 0;
+    for width in def.operand_widths {
+        let operand = match width {
+            1 => {
+                let val = ins[offset] as i32;
+                offset += 1;
+                val
+            }
+            2 => {
+                let val = ((ins[offset] as u16) << 8) | ins[offset + 1] as u16;
+                offset += 2;
+                val as i32
+            }
+            4 => {
+                let val = ((ins[offset] as u32) << 24)
+                    | ((ins[offset + 1] as u32) << 16)
+                    | ((ins[offset + 2] as u32) << 8)
+                    | (ins[offset + 3] as u32);
+                offset += 4;
+                val as i32
+            }
+            _ => unreachable!("Unsupported operand width"),
+        };
+        operands.push(operand);
+    }
+    (operands, offset)
+}
+
 impl Instructions {
     pub fn to_pretty_string(&self) -> String {
         let mut out = String::new();
@@ -109,7 +141,7 @@ impl Instructions {
     }
 }
 
-// Optional: Implement Display for Instructions for convenience
+// Implement Display for Instructions for convenience
 impl fmt::Display for Instructions {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = self.to_pretty_string();
