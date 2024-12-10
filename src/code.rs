@@ -67,7 +67,7 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
     Ok(instruction)
 }
 
-pub type Instructions = Vec<u8>;
+pub struct Instructions(pub Vec<u8>);
 
 fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i32>, usize) {
     let mut operands = Vec::new();
