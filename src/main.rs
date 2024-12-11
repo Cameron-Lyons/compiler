@@ -1,12 +1,10 @@
 // main.rs
 
-mod ast;
 mod code;
 mod compiler;
 mod compiler_test;
 mod object;
 
-use ast::Node;
 use compiler::Compiler;
 
 fn main() {

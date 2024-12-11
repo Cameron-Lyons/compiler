@@ -10,6 +10,9 @@ mod tests {
             expected: Vec<u8>,
         }
 
+        // Assuming OPCONSTANT expects a 2-byte operand,
+        // and OPADD expects no operands (just the opcode).
+        // Adjust these according to your actual opcode definitions.
         let tests = vec![
             TestCase {
                 op: OPCONSTANT,
@@ -20,6 +23,17 @@ mod tests {
                 op: OPCONSTANT,
                 operands: vec![1],
                 expected: vec![OPCONSTANT, 0, 1],
+            },
+            // A test case with multiple operands for an opcode that requires them
+            // Assuming an opcode that expects two 2-byte operands (e.g., OPGETLOCAL).
+            // Example: If OPGETLOCAL expects two 2-byte operands, we might have:
+            // OPGETLOCAL, 2-byte operand (200), 2-byte operand (300)
+            // This would result in: [OPGETLOCAL, 0, 200, 1, 44] (since 300 = 0x012C)
+            // Adjust accordingly to match your opcode definitions.
+            TestCase {
+                op: OPGETLOCAL,
+                operands: vec![200, 300],
+                expected: vec![OPGETLOCAL, 0, 200, 1, 44],
             },
         ];
 
@@ -59,5 +73,20 @@ mod tests {
         let definition = def.unwrap();
         assert_eq!(definition.name, "OpConstant");
         assert_eq!(definition.operand_widths, &[2]);
+
+        // Test another known opcode, e.g., OPADD which might have no operands.
+        let def_add = lookup(OPADD);
+        assert!(def_add.is_ok());
+        let definition_add = def_add.unwrap();
+        assert_eq!(definition_add.name, "OpAdd");
+        assert_eq!(definition_add.operand_widths, &[]);
+    }
+
+    #[test]
+    fn test_lookup_undefined_opcode() {
+        // Use a random opcode number that doesn't exist
+        let def = lookup(0xFF);
+        assert!(def.is_err());
+        assert_eq!(def.unwrap_err(), "Opcode 255 undefined");
     }
 }
