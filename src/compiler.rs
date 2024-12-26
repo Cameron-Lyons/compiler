@@ -1,4 +1,5 @@
-use crate::ast::Node;
+
+use crate::ast::{Node, Program, ExpressionStatement, InfixExpression, IntegerLiteral};
 use crate::code::Instructions;
 use crate::object::Object;
 
@@ -15,8 +16,28 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, _node: Node) -> Result<(), String> {
-        Ok(())
+    pub fn compile(&mut self, node: Node) -> Result<(), String> {
+        match node {
+            Node::Program(program) => {
+                for stmt in program.statements {
+                    self.compile(stmt)?; 
+                }
+                Ok(())
+            }
+            Node::ExpressionStatement(expr_stmt) => {
+                self.compile(*expr_stmt.expression)?; 
+                Ok(())
+            }
+            Node::InfixExpression(infix_expr) => {
+                self.compile(*infix_expr.left)?;
+                self.compile(*infix_expr.right)?;
+                Ok(())
+            }
+            Node::IntegerLiteral(_int_lit) => {
+                // TODO: emit code to load integer literal, etc.
+                Ok(())
+            }
+        }
     }
 
     pub fn bytecode(&self) -> Bytecode {
@@ -31,3 +52,4 @@ pub struct Bytecode {
     pub instructions: Instructions,
     pub constants: Vec<Object>,
 }
+
