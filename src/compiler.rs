@@ -1,4 +1,4 @@
-use crate::ast::{ExpressionStatement, InfixExpression, IntegerLiteral, Node, Program};
+use crate::ast::Node;
 use crate::code::Instructions;
 use crate::object::Object;
 
