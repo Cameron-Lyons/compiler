@@ -10,7 +10,7 @@ pub struct Compiler {
 impl Compiler {
     pub fn new() -> Self {
         Compiler {
-            instructions: Instructions::new(),
+            instructions: Instructions::new(Vec::new()),
             constants: Vec::new(),
         }
     }
