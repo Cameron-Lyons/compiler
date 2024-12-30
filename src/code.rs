@@ -67,6 +67,7 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
     Ok(instruction)
 }
 
+#[derive(Debug)]
 pub struct Instructions(pub Vec<u8>);
 
 impl Instructions {

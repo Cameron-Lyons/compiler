@@ -1,5 +1,5 @@
 // main.rs
-
+mod ast;
 mod code;
 mod compiler;
 mod compiler_test;
