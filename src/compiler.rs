@@ -1,5 +1,5 @@
 use crate::ast::Node;
-use crate::code::Instructions;
+use crate::code::{make, Instructions, OPCONSTANT};
 use crate::object::Object;
 
 pub struct Compiler {
@@ -32,8 +32,10 @@ impl Compiler {
                 self.compile(*infix_expr.right)?;
                 Ok(())
             }
-            Node::IntegerLiteral(_int_lit) => {
-                // TODO: emit code to load integer literal, etc.
+            Node::IntegerLiteral(int_lit) => {
+                let integer_obj = Object::Integer(int_lit.value);
+                let constant_index = self.add_constant(integer_obj);
+                self.emit(OPCONSTANT, &[constant_index as i32])?;
                 Ok(())
             }
         }
@@ -44,6 +46,22 @@ impl Compiler {
             instructions: self.instructions.clone(),
             constants: self.constants.clone(),
         }
+    }
+
+    fn add_constant(&mut self, obj: Object) -> usize {
+        self.constants.push(obj);
+        self.constants.len() - 1
+    }
+
+    fn emit(&mut self, op: u8, operands: &[i32]) -> Result<usize, String> {
+        let instruction = make(op, operands)?;
+        self.add_instruction(instruction)
+    }
+
+    fn add_instruction(&mut self, instruction: Vec<u8>) -> Result<usize, String> {
+        let pos_new_instruction = self.instructions.0.len();
+        self.instructions.0.extend(instruction);
+        Ok(pos_new_instruction)
     }
 }
 
