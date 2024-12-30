@@ -27,10 +27,9 @@ pub static DEFINITIONS: Lazy<HashMap<Opcode, Definition>> = Lazy::new(|| {
 });
 
 pub fn lookup(op: Opcode) -> Result<&'static Definition, String> {
-    match DEFINITIONS.get(&op) {
-        Some(def) => Ok(def),
-        None => Err(format!("opcode {} undefined", op)),
-    }
+    DEFINITIONS
+        .get(&op)
+        .ok_or_else(|| format!("opcode {} undefined", op))
 }
 
 pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
@@ -67,10 +66,14 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
     Ok(instruction)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instructions(pub Vec<u8>);
 
 impl Instructions {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Instructions(bytes)
+    }
+
     pub fn to_pretty_string(&self) -> String {
         let mut out = String::new();
 
@@ -115,7 +118,7 @@ impl Instructions {
 fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i32>, usize) {
     let mut operands = Vec::new();
     let mut offset = 0;
-    for width in def.operand_widths {
+    for &width in def.operand_widths {
         let operand = match width {
             1 => {
                 let val = ins[offset] as i32;
