@@ -1,5 +1,4 @@
-
-use crate::ast::{Node, Program, ExpressionStatement, InfixExpression, IntegerLiteral};
+use crate::ast::{ExpressionStatement, InfixExpression, IntegerLiteral, Node, Program};
 use crate::code::Instructions;
 use crate::object::Object;
 
@@ -20,12 +19,12 @@ impl Compiler {
         match node {
             Node::Program(program) => {
                 for stmt in program.statements {
-                    self.compile(stmt)?; 
+                    self.compile(stmt)?;
                 }
                 Ok(())
             }
             Node::ExpressionStatement(expr_stmt) => {
-                self.compile(*expr_stmt.expression)?; 
+                self.compile(*expr_stmt.expression)?;
                 Ok(())
             }
             Node::InfixExpression(infix_expr) => {
@@ -52,4 +51,3 @@ pub struct Bytecode {
     pub instructions: Instructions,
     pub constants: Vec<Object>,
 }
-
