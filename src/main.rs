@@ -6,11 +6,12 @@ mod compiler_test;
 mod object;
 
 use crate::ast::Node;
+use ast::IntegerLiteral;
 use compiler::Compiler;
 
 fn main() {
     let mut compiler = Compiler::new();
-    let node = Node::IntegerLiteral(42);
+    let node = Node::IntegerLiteral(IntegerLiteral { value: 42 });
     match compiler.compile(node) {
         Ok(_) => {
             let bytecode = compiler.bytecode();
