@@ -113,6 +113,13 @@ impl Instructions {
             _ => format!("ERROR: unhandled operandCount for {}\n", def.name),
         }
     }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i32>, usize) {

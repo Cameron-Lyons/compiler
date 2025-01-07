@@ -20,10 +20,21 @@ impl VM {
             sp: 0,
         }
     }
+
     pub fn stack_top(&self) -> Option<&Object> {
         if self.sp == 0 {
             return None;
         }
         self.stack.get(self.sp - 1).and_then(|v| v.as_ref())
+    }
+
+    pub fn run(&self) -> Result<(), String> {
+        let mut ip = 0;
+        while ip < self.instructions.len() {
+            let opcode = self.instructions[ip];
+            ip += 1;
+            match opcode {}
+        }
+        OK(())
     }
 }
