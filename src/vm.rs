@@ -31,10 +31,10 @@ impl VM {
     pub fn run(&self) -> Result<(), String> {
         let mut ip = 0;
         while ip < self.instructions.len() {
-            let opcode = self.instructions[ip];
+            let opcode = self.instructions.0[ip];
             ip += 1;
-            match opcode {}
+            // match opcode {}
         }
-        OK(())
+        Ok(())
     }
 }
