@@ -33,8 +33,9 @@ impl VM {
         while ip < self.instructions.len() {
             let opcode = self.instructions.0[ip];
             ip += 1;
+
             match opcode {
-                OPCONSTANT => {
+                OP_CONSTANT => {
                     let const_index = Self::read_uint16(&self.instructions.0[ip..]);
                     ip += 2;
 
@@ -43,11 +44,12 @@ impl VM {
                         .get(const_index as usize)
                         .ok_or_else(|| format!("Constant not found at index {}", const_index))?;
 
-                    self.push(constant.clone());
+                    self.push(constant.clone())?;
                 }
                 _ => return Err(format!("Unknown opcode: {}", opcode)),
             }
         }
+
         Ok(())
     }
 
