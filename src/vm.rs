@@ -35,7 +35,7 @@ impl VM {
             ip += 1;
 
             match opcode {
-                OP_CONSTANT => {
+                OPCONSTANT => {
                     let const_index = Self::read_uint16(&self.instructions.0[ip..]);
                     ip += 2;
 
