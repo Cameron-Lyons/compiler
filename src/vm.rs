@@ -1,4 +1,4 @@
-use crate::code::{Instructions, OPCONSTANT};
+use crate::code::{Instructions, OPADD, OPCONSTANT};
 use crate::compiler::Bytecode;
 use crate::object::Object;
 
@@ -30,12 +30,12 @@ impl VM {
 
     pub fn pop(&mut self) -> Result<Object, String> {
         if self.sp == 0 {
-            return Err("stack underflow".to_string());
+            return Err("Stack underflow".to_string());
         }
         self.sp -= 1;
         self.stack[self.sp]
             .take()
-            .ok_or_else(|| "failed to pop from stack".to_string())
+            .ok_or_else(|| "Failed to pop from stack".to_string())
     }
 
     pub fn run(&mut self) -> Result<(), String> {
