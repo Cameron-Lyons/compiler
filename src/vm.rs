@@ -28,6 +28,16 @@ impl VM {
         self.stack.get(self.sp - 1).and_then(|v| v.as_ref())
     }
 
+    pub fn pop(&mut self) -> Result<Object, String> {
+        if self.sp == 0 {
+            return Err("stack underflow".to_string());
+        }
+        self.sp -= 1;
+        self.stack[self.sp]
+            .take()
+            .ok_or_else(|| "failed to pop from stack".to_string())
+    }
+
     pub fn run(&mut self) -> Result<(), String> {
         let mut ip = 0;
         while ip < self.instructions.len() {
@@ -45,6 +55,21 @@ impl VM {
                         .ok_or_else(|| format!("Constant not found at index {}", const_index))?;
 
                     self.push(constant.clone())?;
+                }
+                OPADD => {
+                    let right = self
+                        .pop()?
+                        .ok_or_else(|| "Missing right operand".to_string())?;
+                    let left = self
+                        .pop()?
+                        .ok_or_else(|| "Missing left operand".to_string())?;
+
+                    match (left, right) {
+                        (Object::Integer(left_val), Object::Integer(right_val)) => {
+                            self.push(Object::Integer(left_val + right_val))?;
+                        }
+                        _ => return Err("Unsupported types for addition".to_string()),
+                    }
                 }
                 _ => return Err(format!("Unknown opcode: {}", opcode)),
             }

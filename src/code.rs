@@ -5,6 +5,7 @@ use std::fmt::{self, Write};
 pub type Opcode = u8;
 
 pub const OPCONSTANT: Opcode = 1;
+pub const OPADD: u8 = 2;
 
 #[derive(Debug)]
 pub struct Definition {
@@ -19,7 +20,15 @@ pub static DEFINITIONS: Lazy<HashMap<Opcode, Definition>> = Lazy::new(|| {
         OPCONSTANT,
         Definition {
             name: "OpConstant",
-            operand_widths: &[2],
+            operand_widths: &[2], // Operand is a 16-bit integer
+        },
+    );
+
+    definitions.insert(
+        OPADD,
+        Definition {
+            name: "OpAdd",
+            operand_widths: &[], // No operands for OpAdd
         },
     );
 
@@ -44,20 +53,8 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
             .ok_or_else(|| "operand width not found".to_string())?;
 
         let bytes = match width {
-            1 => {
-                if *operand < 0 || *operand > 255 {
-                    return Err(format!("Operand {} does not fit in 1 byte", operand));
-                }
-                vec![*operand as u8]
-            }
-            2 => {
-                if *operand < 0 || *operand > 65535 {
-                    return Err(format!("Operand {} does not fit in 2 bytes", operand));
-                }
-                (*operand as u16).to_be_bytes().to_vec()
-            }
-            4 => (*operand as u32).to_be_bytes().to_vec(),
-            _ => return Err(format!("Unsupported operand width: {}", width)),
+            2 => operand.to_be_bytes()[6..8].to_vec(), // Extract last 2 bytes for 16-bit
+            _ => return Err(format!("unsupported operand width: {}", width)),
         };
 
         instruction.extend(bytes);
@@ -65,7 +62,6 @@ pub fn make(op: Opcode, operands: &[i32]) -> Result<Vec<u8>, String> {
 
     Ok(instruction)
 }
-
 #[derive(Debug, Clone)]
 pub struct Instructions(pub Vec<u8>);
 
