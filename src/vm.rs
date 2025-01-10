@@ -57,12 +57,8 @@ impl VM {
                     self.push(constant.clone())?;
                 }
                 OPADD => {
-                    let right = self
-                        .pop()?
-                        .ok_or_else(|| "Missing right operand".to_string())?;
-                    let left = self
-                        .pop()?
-                        .ok_or_else(|| "Missing left operand".to_string())?;
+                    let right = self.pop()?;
+                    let left = self.pop()?;
 
                     match (left, right) {
                         (Object::Integer(left_val), Object::Integer(right_val)) => {
