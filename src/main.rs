@@ -4,6 +4,7 @@ mod code;
 mod compiler;
 mod compiler_test;
 mod object;
+mod repl;
 mod vm;
 
 use crate::ast::Node;
