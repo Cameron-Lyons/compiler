@@ -5,7 +5,8 @@ use std::fmt::{self, Write};
 pub type Opcode = u8;
 
 pub const OPCONSTANT: Opcode = 1;
-pub const OPADD: u8 = 2;
+pub const OPADD: Opcode = 2;
+pub const OPPOP: Opcode = 3;
 
 #[derive(Debug)]
 pub struct Definition {
@@ -29,6 +30,14 @@ pub static DEFINITIONS: Lazy<HashMap<Opcode, Definition>> = Lazy::new(|| {
         Definition {
             name: "OpAdd",
             operand_widths: &[], // No operands for OpAdd
+        },
+    );
+
+    definitions.insert(
+        OPPOP,
+        Definition {
+            name: "OpPop",
+            operand_widths: &[],
         },
     );
 

@@ -1,4 +1,4 @@
-use crate::code::{Instructions, OPADD, OPCONSTANT};
+use crate::code::{Instructions, OPADD, OPCONSTANT, OPPOP};
 use crate::compiler::Bytecode;
 use crate::object::Object;
 
