@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Special
@@ -5,32 +7,44 @@ pub enum TokenType {
     Eof,
 
     // Identifiers + literals
-    Ident,
-    Int,
-    String,
+    Ident,  // add, foobar, x, y, ...
+    Int,    // 1343456
+    String, // "string literals"
 
     // Operators
-    Assign,
-    Plus,
-    Minus,
-    Bang,
-    Asterisk,
-    Slash,
-    Lt,
-    Gt,
-    Eq,
-    NotEq,
+    Assign,   // "="
+    Plus,     // "+"
+    Minus,    // "-"
+    Bang,     // "!"
+    Asterisk, // "*"
+    Slash,    // "/"
+
+    Lt, // "<"
+    Gt, // ">"
+
+    Eq,     // "=="
+    NotEq,  // "!="
 
     // Delimiters
-    Comma,
-    Semicolon,
-    Colon,
-    LParen,
-    RParen,
-    LBrace,
-    RBrace,
-    LBracket,
-    RBracket,
+    Comma,     // ","
+    Semicolon, // ";"
+    Colon,     // ":"
+
+    LParen,    // "("
+    RParen,    // ")"
+    LBrace,    // "{"
+    RBrace,    // "}"
+    LBracket,  // "["
+    RBracket,  // "]"
+
+    // Keywords
+    Function, // "fn"
+    Let,      // "let"
+    True,     // "true"
+    False,    // "false"
+    If,       // "if"
+    Else,     // "else"
+    Return,   // "return"
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -41,17 +55,33 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, literal: String) -> Self {
-        Token {
-            token_type,
-            literal,
-        }
+        Token { token_type, literal }
     }
 }
 
-pub fn lookup_ident(ident: &str) -> TokenType {
-    match ident {
-        "fn" => TokenType::Ident,
-        "let" => TokenType::Ident,
-        _ => TokenType::Ident,
+pub struct Keywords {
+    map: HashMap<&'static str, TokenType>,
+}
+
+impl Keywords {
+    pub fn new() -> Self {
+        let mut map = HashMap::new();
+        map.insert("fn", TokenType::Function);
+        map.insert("let", TokenType::Let);
+        map.insert("true", TokenType::True);
+        map.insert("false", TokenType::False);
+        map.insert("if", TokenType::If);
+        map.insert("else", TokenType::Else);
+        map.insert("return", TokenType::Return);
+
+        Keywords { map }
+    }
+
+    pub fn lookup_ident(&self, ident: &str) -> TokenType {
+        if let Some(token_type) = self.map.get(ident) {
+            token_type.clone()
+        } else {
+            TokenType::Ident
+        }
     }
 }
