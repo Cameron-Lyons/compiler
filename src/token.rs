@@ -5,7 +5,7 @@ pub enum TokenType {
     Eof,
 
     // Identifiers + literals
-    Ident, // add keywords if needed (fn, let, etc.)
+    Ident,
     Int,
     String,
 
