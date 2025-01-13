@@ -6,6 +6,7 @@ mod compiler_test;
 mod lexer;
 mod object;
 mod repl;
+mod token;
 mod vm;
 
 use crate::ast::Node;
