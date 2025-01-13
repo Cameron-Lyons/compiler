@@ -1,10 +1,10 @@
-// main.rs
 mod ast;
 mod code;
 mod compiler;
 mod compiler_test;
 mod lexer;
 mod object;
+mod parser;
 mod repl;
 mod token;
 mod vm;
