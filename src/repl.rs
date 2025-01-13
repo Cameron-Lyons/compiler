@@ -1,7 +1,7 @@
 use std::io::{BufRead, Write};
 
 use crate::compiler;
-mod lexer;
+use crate::lexer;
 mod parser;
 use crate::vm;
 
