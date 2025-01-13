@@ -1,20 +1,21 @@
-use crate::token::{lookup_ident, Token, TokenType};
+use crate::token::{Keywords, Token, TokenType};
 
 pub struct Lexer {
     input: Vec<char>,
     position: usize,
     read_position: usize,
     ch: char,
+    keywords: Keywords,
 }
 
 impl Lexer {
-    /// Creates a new `Lexer` from the given input string
     pub fn new(input: &str) -> Self {
         let mut l = Lexer {
             input: input.chars().collect(),
             position: 0,
             read_position: 0,
             ch: '\0',
+            keywords: Keywords::new(),
         };
         // Initialize by reading the first character
         l.read_char();
@@ -109,7 +110,7 @@ impl Lexer {
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
-                    let token_type = lookup_ident(&literal);
+                    let token_type = self.keywords.lookup_ident(&literal);
                     return Token::new(token_type, literal);
                 } else if is_digit(self.ch) {
                     let number = self.read_number();
