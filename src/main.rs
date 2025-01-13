@@ -3,6 +3,7 @@ mod ast;
 mod code;
 mod compiler;
 mod compiler_test;
+mod lexer;
 mod object;
 mod repl;
 mod vm;
