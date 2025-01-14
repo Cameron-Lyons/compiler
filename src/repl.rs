@@ -2,7 +2,7 @@ use std::io::{BufRead, Write};
 
 use crate::compiler;
 use crate::lexer;
-mod parser;
+use crate::parser;
 use crate::vm;
 
 const PROMPT: &str = ">> ";
