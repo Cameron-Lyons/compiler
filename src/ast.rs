@@ -460,7 +460,6 @@ impl Node for IndexExpression {
     fn to_string(&self) -> String {
         let mut out = String::new();
 
-        // e.g. "(myArray[1])"
         out.push('(');
         if let Some(l) = &self.left {
             out.push_str(&l.to_string());
@@ -493,7 +492,6 @@ impl Node for HashLiteral {
     fn to_string(&self) -> String {
         let mut out = String::new();
 
-        // e.g. "{key1: val1, key2: val2}"
         out.push_str(LEFT_BRACE);
 
         let mut pair_strings = vec![];
