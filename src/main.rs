@@ -9,21 +9,39 @@ mod repl;
 mod token;
 mod vm;
 
-use crate::ast::Node;
-use ast::IntegerLiteral;
-use compiler::Compiler;
+use std::env;
+use std::io::{self, BufRead, Write};
 
 fn main() {
-    let mut compiler = Compiler::new();
-    let node = Node::IntegerLiteral(IntegerLiteral { value: 42 });
-    match compiler.compile(node) {
-        Ok(_) => {
-            let bytecode = compiler.bytecode();
-            println!("Instructions: {:?}", bytecode.instructions);
-            println!("Constants: {:?}", bytecode.constants);
+    let username = env::var("USER").unwrap_or_else(|_| "User".to_string());
+
+    println!(
+        "Hello {}! This is the Monkey programming language!",
+        username
+    );
+    println!("Feel free to type in commands");
+
+    start_repl();
+}
+
+fn start_repl() {
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+
+    loop {
+        print!(">> ");
+        stdout.flush().expect("Failed to flush stdout");
+
+        let mut buffer = String::new();
+        let bytes_read = stdin
+            .lock()
+            .read_line(&mut buffer)
+            .expect("Failed to read line from stdin");
+
+        if bytes_read == 0 {
+            break;
         }
-        Err(err) => {
-            eprintln!("Compilation error: {}", err);
-        }
+
+        println!("You typed: {}", buffer.trim());
     }
 }
