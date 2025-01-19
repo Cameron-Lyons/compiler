@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Write};
+use std::io::{BufRead, Write};
 
 use crate::compiler::{Compiler, SymbolTable};
 use crate::lexer::Lexer;
