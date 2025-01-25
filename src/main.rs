@@ -1,46 +1,51 @@
-mod ast;
-mod code;
-mod compiler;
-mod lexer;
-mod object;
-mod parser;
-mod repl;
-mod token;
-mod vm;
+use compiler::compiler::Compiler;
+use compiler::vm::VM;
 
-use std::env;
-use std::io::{self, BufRead, Write};
+use compiler::symbol_table::SymbolTable;
+use object::Object;
+use std::io::stdin;
+use std::io::{self, Write};
+use std::rc::Rc;
+
+use parser::parse;
 
 fn main() {
-    let username = env::var("USER").unwrap_or_else(|_| "User".to_string());
-
-    println!(
-        "Hello {}! This is the Monkey programming language!",
-        username
-    );
-    println!("Feel free to type in commands");
-
-    start_repl();
-}
-
-fn start_repl() {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
+    let mut constants = vec![];
+    let mut symbol_table = SymbolTable::new();
+    let mut globals = vec![Rc::new(Object::Null); compiler::vm::GLOBAL_SIZE];
     loop {
-        print!(">> ");
-        stdout.flush().expect("Failed to flush stdout");
+        print!("> ");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        stdin().read_line(&mut input).unwrap();
 
-        let mut buffer = String::new();
-        let bytes_read = stdin
-            .lock()
-            .read_line(&mut buffer)
-            .expect("Failed to read line from stdin");
-
-        if bytes_read == 0 {
-            break;
+        if input.trim_end().is_empty() {
+            std::process::exit(0);
         }
 
-        println!("You typed: {}", buffer.trim());
+        let program = match parse(&input) {
+            Ok(x) => x,
+            Err(e) => {
+                println!("{}", e[0]);
+                continue;
+            }
+        };
+
+        let mut compiler = Compiler::new_with_state(symbol_table, constants);
+
+        match compiler.compile(&program) {
+            Ok(bytecodes) => {
+                let mut vm = VM::new_with_global_store(bytecodes, globals);
+                vm.run();
+                println!("{}", vm.last_popped_stack_elm().unwrap());
+                globals = vm.globals;
+            }
+            Err(e) => {
+                println!("{}", e);
+            }
+        };
+
+        symbol_table = compiler.symbol_table;
+        constants = compiler.constants;
     }
 }
