@@ -5,7 +5,6 @@ mod tests {
     use crate::compiler::{Bytecode, Compiler};
     use crate::object::Object;
 
-    /// Struct to hold compiler test cases.
     struct CompilerTestCase {
         input: String,
         expected_constants: Vec<Object>,
@@ -20,18 +19,14 @@ mod tests {
             expected_instructions: vec![
                 make(OPCONSTANT, &[0]).unwrap(),
                 make(OPCONSTANT, &[1]).unwrap(),
-                // You can add the opcode for addition if implemented
-                // e.g., make(OPADD, &[]).unwrap(),
             ],
         }];
 
         run_compiler_tests(tests);
     }
 
-    /// Runs the compiler tests.
     fn run_compiler_tests(tests: Vec<CompilerTestCase>) {
         for tt in tests {
-            // Parse the input into an AST.
             let program = parse_program(&tt.input).expect("Failed to parse input");
 
             let mut compiler = Compiler::new();
@@ -52,9 +47,7 @@ mod tests {
         }
     }
 
-    /// Compares expected instructions with the actual instructions.
     fn test_instructions(expected: &[Instructions], actual: &Instructions) -> Result<(), String> {
-        // Flatten the expected instructions into a single Instructions vector.
         let expected_flat: Instructions = expected.iter().flatten().cloned().collect();
 
         if expected_flat != *actual {
@@ -66,7 +59,6 @@ mod tests {
         Ok(())
     }
 
-    /// Compares expected constants with the actual constants.
     fn test_constants(expected: &[Object], actual: &[Object]) -> Result<(), String> {
         if expected.len() != actual.len() {
             return Err(format!(
