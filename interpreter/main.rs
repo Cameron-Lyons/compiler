@@ -6,7 +6,6 @@ use std::io::stdin;
 use std::rc::Rc;
 
 fn main() {
-    println!("Welcome to monkey interpreter by gengjiawen");
     let env: Env = Rc::new(RefCell::new(Default::default()));
     loop {
         let mut input = String::new();
