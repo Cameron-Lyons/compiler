@@ -1,8 +1,8 @@
-use core::fmt;
-use core::fmt::Result;
 use lexer::token::{Span, Token, TokenKind};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fmt::Formatter;
+use std::fmt::Result;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, Hash, PartialEq)]
 pub enum Node {
@@ -306,4 +306,3 @@ fn format_expressions(exprs: &Vec<Expression>) -> String {
         .collect::<Vec<String>>()
         .join(", ");
 }
-
