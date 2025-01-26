@@ -1,5 +1,5 @@
 pub mod ast;
-mod ast_tree_test;
+mod ast_test;
 mod parser_test;
 mod precedences;
 
