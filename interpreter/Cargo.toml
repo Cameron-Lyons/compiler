@@ -1,0 +1,17 @@
+[package]
+name = "monkey-interpreter"
+version = "0.9.1"
+description = "an interpreter for monkey lang"
+
+
+[lib]
+name = "interpreter"
+path= "lib.rs"
+
+[[bin]]
+name = "monkey-interpreter"
+path = "main.rs"
+
+[dependencies]
+monkey-parser = { path = "../parser" }
+monkey-object = { path = "../object" }

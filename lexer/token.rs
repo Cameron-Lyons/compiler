@@ -1,6 +1,8 @@
-use serde::{Deserialize, Serialize};
+use self::serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Formatter;
+
+extern crate serde;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, Serialize, Deserialize, PartialOrd, PartialEq)]
 pub struct Token {
