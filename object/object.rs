@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{write, Formatter};
+use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 

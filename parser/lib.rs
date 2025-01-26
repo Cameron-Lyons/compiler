@@ -29,15 +29,6 @@ impl<'a> Parser<'a> {
         let cur = lexer.next_token();
         let next = lexer.next_token();
         let errors = Vec::new();
-        // in strict sense, rust can be as classic go pattern, but it requires more work
-        // so let's just use pattern matching
-        // ```rust
-        // type PrefixParseFn = fn() -> Result<Expression, ParseError>;
-        // type InfixParseFn = fn(Expression) -> Result<Expression, ParseError>;
-        // let prefix_parse_fns = HashMap::new();
-        // let infix_parse_fns = HashMap::new();
-        // ```
-
         let p = Parser {
             lexer,
             current_token: cur,

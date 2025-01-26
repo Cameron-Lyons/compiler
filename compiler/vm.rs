@@ -6,7 +6,7 @@ use byteorder::{BigEndian, ByteOrder};
 use object::builtins::BuiltIns;
 
 use object::Object::ClosureObj;
-use object::{BuiltinFunc, Closure, CompiledFunction, Object};
+use object::{BuiltinFunc, Closure, Object};
 
 use crate::compiler::Bytecode;
 use crate::frame::Frame;

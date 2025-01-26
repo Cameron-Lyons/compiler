@@ -14,7 +14,6 @@ pub fn run_vm_tests(tests: Vec<VmTestCase>) {
         let program = parse(t.input).unwrap();
         let mut compiler = Compiler::new();
         let bytecodes = compiler.compile(&program).unwrap();
-        let s = bytecodes.instructions.string();
         println!(
             "ins {} for input {}",
             bytecodes.instructions.string(),
