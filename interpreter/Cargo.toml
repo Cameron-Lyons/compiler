@@ -1,6 +1,5 @@
 [package]
 name = "monkey-interpreter"
-version = "0.9.1"
 description = "an interpreter for monkey lang"
 
 
