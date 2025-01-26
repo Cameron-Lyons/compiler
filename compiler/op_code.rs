@@ -1,5 +1,6 @@
 use byteorder;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use std::collections::HashMap;
 
 use strum::{EnumCount, EnumIter};
 

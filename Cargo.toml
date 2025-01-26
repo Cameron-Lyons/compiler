@@ -6,3 +6,4 @@ members = [
   "interpreter",
   "compiler",
 ]
+edition = '2021'

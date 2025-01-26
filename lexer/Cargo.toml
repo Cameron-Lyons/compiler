@@ -1,6 +1,7 @@
 [package]
 name = "monkey-lexer"
 description = "a lexer for monkey lang"
+edition = '2021'
 
 [lib]
 name = "lexer"

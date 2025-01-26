@@ -1,6 +1,7 @@
 [package]
 name = "monkey-compiler"
 description = "a compiler for monkey lang"
+edition = '2021'
 
 [lib]
 name = "compiler"
