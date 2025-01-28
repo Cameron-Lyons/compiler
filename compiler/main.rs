@@ -14,7 +14,7 @@ fn main() {
     let mut symbol_table = SymbolTable::new();
     let mut globals = vec![Rc::new(Object::Null); compiler::vm::GLOBAL_SIZE];
     loop {
-        print!("> ");
+        print!(">> ");
         io::stdout().flush().unwrap();
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
