@@ -3,23 +3,23 @@ use object::Closure;
 
 #[derive(Debug, Clone)]
 pub struct Frame {
-    pub cl: Closure,
+    pub closure: Closure,
     pub ip: i32,
     pub base_pointer: usize,
 }
 
 impl Frame {
-    pub fn new(func: Closure, base_pointer: usize) -> Self {
+    pub fn new(closure: Closure, base_pointer: usize) -> Self {
         Frame {
-            cl: func,
-            ip: -1,
+            closure, // Field and parameter name alignment
+            ip: -1,  // Starts before first instruction
             base_pointer,
         }
     }
 
     pub fn instructions(&self) -> Instructions {
-        return Instructions {
-            data: self.cl.func.instructions.clone(),
-        };
+        Instructions {
+            data: self.closure.func.instructions.clone(),
+        }
     }
 }
