@@ -72,13 +72,12 @@ impl VM {
     }
 
     pub fn run(&mut self) {
-        let mut ip = 0;
         let mut ins: Vec<u8>;
         while self.current_frame().ip
             < self.current_frame().instructions().bytes.len() as i32 - 1
         {
             self.current_frame().ip += 1;
-            ip = self.current_frame().ip as usize;
+            let ip = self.current_frame().ip as usize;
             ins = self.current_frame().instructions().bytes.clone();
 
             let op: u8 = *ins.get(ip).unwrap();

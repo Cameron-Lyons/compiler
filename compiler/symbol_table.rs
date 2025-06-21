@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{RefCell, Cell};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SymbolScope {
@@ -23,7 +23,7 @@ pub struct SymbolTable {
     outer: Option<Rc<SymbolTable>>,
     symbols: RefCell<HashMap<String, Rc<Symbol>>>,
     free_symbols: RefCell<Vec<Rc<Symbol>>>,
-    num_definitions: usize,
+    num_definitions: Cell<usize>,
 }
 
 impl SymbolTable {
@@ -31,7 +31,7 @@ impl SymbolTable {
         Self {
             symbols: RefCell::new(HashMap::new()),
             free_symbols: RefCell::new(Vec::new()),
-            num_definitions: 0,
+            num_definitions: Cell::new(0),
             outer: None,
         }
     }
@@ -40,7 +40,7 @@ impl SymbolTable {
         Self {
             symbols: RefCell::new(HashMap::new()),
             free_symbols: RefCell::new(Vec::new()),
-            num_definitions: 0,
+            num_definitions: Cell::new(0),
             outer: Some(outer),
         }
     }
@@ -55,16 +55,12 @@ impl SymbolTable {
         let name = name.to_string();
         let symbol = Rc::new(Symbol {
             name: name.clone(),
-            index: self.num_definitions,
+            index: self.num_definitions.get(),
             scope,
         });
 
         self.symbols.borrow_mut().insert(name, Rc::clone(&symbol));
-        // num_definitions is not in a RefCell, so this is only safe for single-threaded use
-        unsafe {
-            let ptr = self as *const _ as *mut SymbolTable;
-            (*ptr).num_definitions += 1;
-        }
+        self.num_definitions.set(self.num_definitions.get() + 1);
         symbol
     }
 
@@ -131,7 +127,7 @@ impl SymbolTable {
 
     // Accessor methods
     pub fn num_definitions(&self) -> usize {
-        self.num_definitions
+        self.num_definitions.get()
     }
 
     pub fn free_symbols(&self) -> Vec<Rc<Symbol>> {

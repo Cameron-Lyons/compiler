@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 pub mod compiler;
 mod compiler_function_test;
 mod compiler_test;

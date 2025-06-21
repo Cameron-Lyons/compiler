@@ -57,7 +57,7 @@ impl Compiler {
     pub fn new() -> Self {
         let main_scope = CompilationScope::default();
 
-        let mut symbol_table = SymbolTable::new();
+        let symbol_table = SymbolTable::new();
         for (key, value) in BuiltIns.iter().enumerate() {
             symbol_table.define_builtin(key, value.0);
         }
