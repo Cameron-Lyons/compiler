@@ -19,7 +19,7 @@ impl Frame {
 
     pub fn instructions(&self) -> Instructions {
         Instructions {
-            data: self.closure.func.instructions.clone(),
+            bytes: self.closure.func.instructions.clone(),
         }
     }
 }

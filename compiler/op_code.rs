@@ -6,7 +6,7 @@ use strum::{EnumCount, EnumIter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Instructions {
-    bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -191,6 +191,22 @@ impl Instructions {
 
         output
     }
+
+    pub fn string(&self) -> String {
+        self.disassemble()
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
 }
 
 impl Display for OpcodeDefinition {
@@ -234,10 +250,24 @@ impl TryFrom<u8> for Opcode {
     type Error = ();
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value <= Opcode::OpCurrentClosure as u8 {
+        if value < Opcode::COUNT as u8 {
+            // SAFETY: We've checked the bounds above
             Ok(unsafe { std::mem::transmute(value) })
         } else {
             Err(())
         }
     }
+}
+
+// Add missing functions that are imported by other modules
+pub fn cast_u8_to_opcode(byte: u8) -> Opcode {
+    Opcode::try_from(byte).unwrap_or_else(|_| panic!("Invalid opcode byte: 0x{:02x}", byte))
+}
+
+pub fn make_instructions(op: Opcode, operands: &[usize]) -> Result<Instructions, String> {
+    make(op, operands)
+}
+
+pub fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {
+    Instructions::merge(instructions)
 }

@@ -18,7 +18,7 @@ struct CompilationScope {
 impl Default for CompilationScope {
     fn default() -> Self {
         Self {
-            instructions: Instructions { data: vec![] },
+            instructions: Instructions { bytes: vec![] },
             last_instruction: EmittedInstruction {
                 opcode: OpNull,
                 position: 0,
@@ -59,7 +59,7 @@ impl Compiler {
 
         let mut symbol_table = SymbolTable::new();
         for (key, value) in BuiltIns.iter().enumerate() {
-            symbol_table.define_builtin(key, value.0.to_string());
+            symbol_table.define_builtin(key, value.0);
         }
 
         Compiler {
@@ -98,9 +98,11 @@ impl Compiler {
     fn compile_stmt(&mut self, s: &Statement) -> Result<(), CompileError> {
         match s {
             Statement::Let(let_statement) => {
-                let symbol = self
-                    .symbol_table
-                    .define(let_statement.identifier.kind.to_string());
+                let name = match &let_statement.identifier.kind {
+                    TokenKind::IDENTIFIER { name } => name,
+                    _ => return Err("Expected identifier".to_string()),
+                };
+                let symbol = self.symbol_table.define(name);
                 self.compile_expr(&let_statement.expr)?;
                 if symbol.scope == SymbolScope::Global {
                     self.emit(Opcode::OpSetGlobal, &[symbol.index]);
@@ -125,7 +127,7 @@ impl Compiler {
     fn compile_expr(&mut self, e: &Expression) -> Result<(), CompileError> {
         match e {
             Expression::IDENTIFIER(identifier) => {
-                let symbol = self.symbol_table.resolve(identifier.name.clone());
+                let symbol = self.symbol_table.resolve(&identifier.name);
                 match symbol {
                     Some(symbol) => {
                         self.load_symbol(&symbol);
@@ -199,7 +201,7 @@ impl Compiler {
                     TokenKind::EQ => self.emit(Opcode::OpEqual, &[]),
                     TokenKind::NotEq => self.emit(Opcode::OpNotEqual, &[]),
                     _ => return Err(format!("unexpected infix op: {}", infix.op)),
-                }
+                };
             }
             Expression::IF(if_node) => {
                 self.compile_expr(&if_node.condition)?;
@@ -210,7 +212,7 @@ impl Compiler {
                 }
 
                 let jump_pos = self.emit(OpJump, &[Self::PLACEHOLDER_ADDRESS]);
-                let after_consequence_location = self.current_instruction().data.len();
+                let after_consequence_location = self.current_instruction().bytes.len();
                 self.change_operand(jump_not_truthy, after_consequence_location);
 
                 if let Some(alternate) = &if_node.alternate {
@@ -222,7 +224,7 @@ impl Compiler {
                     self.emit(OpNull, &[]);
                 }
 
-                let after_alternative_location = self.current_instruction().data.len();
+                let after_alternative_location = self.current_instruction().bytes.len();
                 self.change_operand(jump_pos, after_alternative_location);
             }
             Expression::Index(index) => {
@@ -233,7 +235,7 @@ impl Compiler {
             Expression::FUNCTION(f) => {
                 self.enter_scope();
                 for param in &f.params {
-                    self.symbol_table.define(param.name.clone());
+                    self.symbol_table.define(&param.name);
                 }
                 self.compile_block_statement(&f.body)?;
                 if self.last_instruction_is(OpPop) {
@@ -242,15 +244,15 @@ impl Compiler {
                 if !self.last_instruction_is(OpReturnValue) {
                     self.emit(OpReturn, &[]);
                 }
-                let num_locals = self.symbol_table.num_definitions;
-                let free_symbols = self.symbol_table.free_symbols.clone();
+                let num_locals = self.symbol_table.num_definitions();
+                let free_symbols = self.symbol_table.free_symbols().to_vec();
                 let instructions = self.leave_scope();
                 for symbol in &free_symbols {
                     self.load_symbol(symbol);
                 }
 
                 let compiled_function = Rc::new(object::CompiledFunction {
-                    instructions: instructions.data,
+                    instructions: instructions.bytes,
                     num_locals,
                     num_parameters: f.params.len(),
                 });
@@ -276,11 +278,11 @@ impl Compiler {
     fn load_symbol(&mut self, symbol: &Rc<Symbol>) {
         match symbol.scope {
             SymbolScope::Global => self.emit(OpGetGlobal, &[symbol.index]),
-            SymbolScope::LOCAL => self.emit(OpGetLocal, &[symbol.index]),
+            SymbolScope::Local => self.emit(OpGetLocal, &[symbol.index]),
             SymbolScope::Builtin => self.emit(OpGetBuiltin, &[symbol.index]),
             SymbolScope::Free => self.emit(OpGetFree, &[symbol.index]),
             SymbolScope::Function => self.emit(OpCurrentClosure, &[]),
-        }
+        };
     }
 
     pub fn bytecode(&self) -> Bytecode {
@@ -296,7 +298,7 @@ impl Compiler {
     }
 
     pub fn emit(&mut self, op: Opcode, operands: &[usize]) -> usize {
-        let ins = make_instructions(op, operands);
+        let ins = make_instructions(op, operands).unwrap();
         let pos = self.add_instructions(&ins);
         self.set_last_instruction(op, pos);
         pos
@@ -313,11 +315,11 @@ impl Compiler {
     }
 
     pub fn add_instructions(&mut self, ins: &Instructions) -> usize {
-        let pos = self.current_instruction().data.len();
+        let pos = self.current_instruction().bytes.len();
         self.scopes[self.scope_index]
             .instructions
-            .data
-            .extend_from_slice(&ins.data);
+            .bytes
+            .extend_from_slice(&ins.bytes);
         pos
     }
 
@@ -332,7 +334,7 @@ impl Compiler {
     }
 
     fn last_instruction_is(&self, op: Opcode) -> bool {
-        if self.current_instruction().data.is_empty() {
+        if self.current_instruction().bytes.is_empty() {
             return false;
         }
         self.scopes[self.scope_index].last_instruction.opcode == op
@@ -344,28 +346,29 @@ impl Compiler {
 
         self.scopes[self.scope_index]
             .instructions
-            .data
+            .bytes
             .truncate(last.position);
         self.scopes[self.scope_index].last_instruction = previous;
     }
 
     fn replace_instruction(&mut self, pos: usize, new_instruction: &Instructions) {
-        let ins = &mut self.scopes[self.scope_index].instructions.data;
+        let ins = &mut self.scopes[self.scope_index].instructions.bytes;
         ins.splice(
-            pos..pos + new_instruction.data.len(),
-            new_instruction.data.iter().cloned(),
+            pos..pos + new_instruction.bytes.len(),
+            new_instruction.bytes.iter().cloned(),
         );
     }
 
     fn replace_last_pop_with_return(&mut self) {
         let last_pos = self.scopes[self.scope_index].last_instruction.position;
-        self.replace_instruction(last_pos, &make_instructions(OpReturnValue, &[]));
+        let ins = make_instructions(OpReturnValue, &[]).unwrap();
+        self.replace_instruction(last_pos, &ins);
         self.scopes[self.scope_index].last_instruction.opcode = OpReturnValue;
     }
 
     fn change_operand(&mut self, pos: usize, operand: usize) {
-        let op = cast_u8_to_opcode(self.current_instruction().data[pos]);
-        let ins = make_instructions(op, &[operand]);
+        let op = cast_u8_to_opcode(self.current_instruction().bytes[pos]);
+        let ins = make_instructions(op, &[operand]).unwrap();
         self.replace_instruction(pos, &ins);
     }
 
@@ -376,14 +379,14 @@ impl Compiler {
     fn enter_scope(&mut self) {
         self.scopes.push(CompilationScope::default());
         self.scope_index += 1;
-        self.symbol_table = SymbolTable::new_enclosed_symbol_table(self.symbol_table.clone());
+        self.symbol_table = SymbolTable::new_enclosed(Rc::new(self.symbol_table.clone()));
     }
 
     fn leave_scope(&mut self) -> Instructions {
         let instructions = self.current_instruction().clone();
         self.scopes.pop();
         self.scope_index -= 1;
-        self.symbol_table = self.symbol_table.outer.as_ref().unwrap().as_ref().clone();
+        self.symbol_table = self.symbol_table.outer().as_ref().unwrap().as_ref().clone();
         instructions
     }
 }

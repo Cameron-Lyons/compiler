@@ -32,9 +32,9 @@ pub fn run_compiler_test(tests: Vec<CompilerTestCase>) {
 }
 
 fn test_instructions(expected: &Vec<Instructions>, actual: &Instructions) {
-    let expected_ins = concat_instructions(expected);
+    let expected_ins = concat_instructions(expected.clone());
 
-    for (&exp, got) in expected_ins.data.iter().zip(actual.data.clone()) {
+    for (&exp, got) in expected_ins.bytes.iter().zip(actual.bytes.clone()) {
         assert_eq!(
             exp,
             got,

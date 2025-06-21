@@ -43,7 +43,7 @@ impl VM {
         );
 
         let main_fn = Rc::from(object::CompiledFunction {
-            instructions: bytecode.instructions.data,
+            instructions: bytecode.instructions.bytes,
             num_locals: 0,
             num_parameters: 0,
         });
@@ -75,11 +75,11 @@ impl VM {
         let mut ip = 0;
         let mut ins: Vec<u8>;
         while self.current_frame().ip
-            < self.current_frame().instructions().data.clone().len() as i32 - 1
+            < self.current_frame().instructions().bytes.len() as i32 - 1
         {
             self.current_frame().ip += 1;
             ip = self.current_frame().ip as usize;
-            ins = self.current_frame().instructions().data.clone();
+            ins = self.current_frame().instructions().bytes.clone();
 
             let op: u8 = *ins.get(ip).unwrap();
             let opcode = cast_u8_to_opcode(op);
@@ -198,11 +198,11 @@ impl VM {
                 Opcode::OpGetFree => {
                     let free_index = ins[ip + 1] as usize;
                     self.current_frame().ip += 1;
-                    let current_closure = self.current_frame().cl.clone();
+                    let current_closure = self.current_frame().closure.clone();
                     self.push(current_closure.free[free_index].clone());
                 }
                 Opcode::OpCurrentClosure => {
-                    let current_closure = self.current_frame().cl.clone();
+                    let current_closure = self.current_frame().closure.clone();
                     self.push(Rc::new(Object::ClosureObj(current_closure)));
                 }
             }

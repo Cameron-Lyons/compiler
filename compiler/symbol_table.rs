@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SymbolScope {
@@ -17,19 +18,19 @@ pub struct Symbol {
     pub index: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SymbolTable {
     outer: Option<Rc<SymbolTable>>,
-    symbols: HashMap<String, Rc<Symbol>>,
-    free_symbols: Vec<Rc<Symbol>>,
+    symbols: RefCell<HashMap<String, Rc<Symbol>>>,
+    free_symbols: RefCell<Vec<Rc<Symbol>>>,
     num_definitions: usize,
 }
 
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
-            symbols: HashMap::new(),
-            free_symbols: Vec::new(),
+            symbols: RefCell::new(HashMap::new()),
+            free_symbols: RefCell::new(Vec::new()),
             num_definitions: 0,
             outer: None,
         }
@@ -37,14 +38,14 @@ impl SymbolTable {
 
     pub fn new_enclosed(outer: Rc<Self>) -> Self {
         Self {
-            symbols: HashMap::new(),
-            free_symbols: Vec::new(),
+            symbols: RefCell::new(HashMap::new()),
+            free_symbols: RefCell::new(Vec::new()),
             num_definitions: 0,
             outer: Some(outer),
         }
     }
 
-    pub fn define(&mut self, name: &str) -> Rc<Symbol> {
+    pub fn define(&self, name: &str) -> Rc<Symbol> {
         let scope = if self.outer.is_some() {
             SymbolScope::Local
         } else {
@@ -58,13 +59,17 @@ impl SymbolTable {
             scope,
         });
 
-        self.symbols.insert(name, Rc::clone(&symbol));
-        self.num_definitions += 1;
+        self.symbols.borrow_mut().insert(name, Rc::clone(&symbol));
+        // num_definitions is not in a RefCell, so this is only safe for single-threaded use
+        unsafe {
+            let ptr = self as *const _ as *mut SymbolTable;
+            (*ptr).num_definitions += 1;
+        }
         symbol
     }
 
     pub fn resolve(&self, name: &str) -> Option<Rc<Symbol>> {
-        if let Some(symbol) = self.symbols.get(name) {
+        if let Some(symbol) = self.symbols.borrow().get(name) {
             return Some(Rc::clone(symbol));
         }
 
@@ -84,46 +89,43 @@ impl SymbolTable {
         None
     }
 
-    pub fn define_builtin(&mut self, index: usize, name: &str) -> Rc<Symbol> {
+    pub fn define_builtin(&self, index: usize, name: &str) -> Rc<Symbol> {
         let name = name.to_string();
         let symbol = Rc::new(Symbol {
             name: name.clone(),
             index,
             scope: SymbolScope::Builtin,
         });
-        self.symbols.insert(name, Rc::clone(&symbol));
+        self.symbols.borrow_mut().insert(name, Rc::clone(&symbol));
         symbol
     }
 
-    pub fn define_function_name(&mut self, name: &str) -> Rc<Symbol> {
+    pub fn define_function_name(&self, name: &str) -> Rc<Symbol> {
         let name = name.to_string();
         let symbol = Rc::new(Symbol {
             name: name.clone(),
             index: 0,
             scope: SymbolScope::Function,
         });
-        self.symbols.insert(name, Rc::clone(&symbol));
+        self.symbols.borrow_mut().insert(name, Rc::clone(&symbol));
         symbol
     }
 
     fn define_free_checked(&self, original: Rc<Symbol>) -> Rc<Symbol> {
-        if let Some(existing) = self.symbols.get(&original.name) {
+        if let Some(existing) = self.symbols.borrow().get(&original.name) {
             return Rc::clone(existing);
         }
-
-        let mut self_mut = unsafe { &mut *(self as *const Self as *mut Self) };
-        self_mut.define_free(original)
+        self.define_free(original)
     }
 
-    fn define_free(&mut self, original: Rc<Symbol>) -> Rc<Symbol> {
-        self.free_symbols.push(Rc::clone(&original));
+    fn define_free(&self, original: Rc<Symbol>) -> Rc<Symbol> {
+        self.free_symbols.borrow_mut().push(Rc::clone(&original));
         let symbol = Rc::new(Symbol {
             name: original.name.clone(),
-            index: self.free_symbols.len() - 1,
+            index: self.free_symbols.borrow().len() - 1,
             scope: SymbolScope::Free,
         });
-        self.symbols
-            .insert(original.name.clone(), Rc::clone(&symbol));
+        self.symbols.borrow_mut().insert(original.name.clone(), Rc::clone(&symbol));
         symbol
     }
 
@@ -132,8 +134,8 @@ impl SymbolTable {
         self.num_definitions
     }
 
-    pub fn free_symbols(&self) -> &[Rc<Symbol>] {
-        &self.free_symbols
+    pub fn free_symbols(&self) -> Vec<Rc<Symbol>> {
+        self.free_symbols.borrow().clone()
     }
 
     pub fn outer(&self) -> Option<&Rc<Self>> {
