@@ -12,7 +12,9 @@ use parser::parse;
 fn main() {
     let mut constants = vec![];
     let mut symbol_table = SymbolTable::new();
-    let mut globals = vec![Rc::new(Object::Null); compiler::vm::GLOBAL_SIZE];
+    let mut globals: Vec<Rc<Object>> = (0..compiler::vm::GLOBAL_SIZE)
+        .map(|_| Rc::new(Object::Null))
+        .collect();
     loop {
         print!(">> ");
         io::stdout().flush().unwrap();

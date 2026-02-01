@@ -1,0 +1,40 @@
+---
+source: parser/ast_test.rs
+expression: "[1, true]"
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "Array",
+        "elements": [
+          {
+            "type": "Integer",
+            "raw": 1,
+            "span": {
+              "start": 1,
+              "end": 2
+            }
+          },
+          {
+            "type": "Boolean",
+            "raw": true,
+            "span": {
+              "start": 4,
+              "end": 8
+            }
+          }
+        ],
+        "span": {
+          "start": 0,
+          "end": 9
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 10
+    }
+  }
+}

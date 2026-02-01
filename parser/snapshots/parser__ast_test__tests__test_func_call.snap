@@ -1,0 +1,48 @@
+---
+source: parser/ast_test.rs
+expression: "add(1, 2)"
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "IDENTIFIER",
+          "name": "add",
+          "span": {
+            "start": 0,
+            "end": 3
+          }
+        },
+        "arguments": [
+          {
+            "type": "Integer",
+            "raw": 1,
+            "span": {
+              "start": 4,
+              "end": 5
+            }
+          },
+          {
+            "type": "Integer",
+            "raw": 2,
+            "span": {
+              "start": 7,
+              "end": 8
+            }
+          }
+        ],
+        "span": {
+          "start": 0,
+          "end": 9
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 10
+    }
+  }
+}

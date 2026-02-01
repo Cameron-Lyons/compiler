@@ -1,6 +1,5 @@
 ---
 source: lexer/lexer_test.rs
-assertion_line: 25
 expression: "\n// welcome to monkeylang\nlet five = 5;\nlet ten = 10;\n\nlet add = fn(x, y) {\n  x + y;\n};\n\nlet result = add(five, ten);\n!-/*5;\n5 < 10 > 5;\n\nif (5 < 10) {\n\treturn true;\n} else {\n\treturn false;\n}\n\n10 == 10;\n10 != 9;"
 ---
 [

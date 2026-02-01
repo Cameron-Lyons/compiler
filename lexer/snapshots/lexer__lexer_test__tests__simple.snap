@@ -1,6 +1,5 @@
 ---
 source: lexer/lexer_test.rs
-assertion_line: 25
 expression: "=+(){},:;"
 ---
 [

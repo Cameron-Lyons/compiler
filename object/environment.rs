@@ -13,9 +13,10 @@ pub struct Environment {
 
 impl Environment {
     pub fn new_enclosed_environment(outer: &Env) -> Self {
-        let mut env: Environment = Default::default();
-        env.outer = Some(Rc::clone(outer));
-        return env;
+        Environment {
+            outer: Some(Rc::clone(outer)),
+            ..Default::default()
+        }
     }
 
     pub fn get(&self, name: &str) -> Option<Rc<Object>> {
@@ -25,7 +26,7 @@ impl Environment {
                 if let Some(outer) = &self.outer {
                     return outer.borrow().get(name);
                 } else {
-                    return None;
+                    None
                 }
             }
         }

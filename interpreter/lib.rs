@@ -8,6 +8,7 @@ use object::{EvalError, Object};
 use parser::ast::*;
 use parser::lexer::token::{Token, TokenKind};
 
+#[cfg(test)]
 mod interpreter_test;
 
 pub fn eval(node: Node, env: &Env) -> Result<Rc<Object>, EvalError> {
@@ -30,7 +31,7 @@ fn eval_block_statements(statements: &Vec<Statement>, env: &Env) -> Result<Rc<Ob
         }
     }
 
-    return Ok(result);
+    Ok(result)
 }
 
 fn eval_statement(statement: &Statement, env: &Env) -> Result<Rc<Object>, EvalError> {
@@ -38,7 +39,7 @@ fn eval_statement(statement: &Statement, env: &Env) -> Result<Rc<Object>, EvalEr
         Statement::Expr(expr) => eval_expression(expr, env),
         Statement::Return(ReturnStatement { argument, .. }) => {
             let val = eval_expression(argument, env)?;
-            return Ok(Rc::new(Object::ReturnValue(val)));
+            Ok(Rc::new(Object::ReturnValue(val)))
         }
         Statement::Let(Let {
             identifier: id,
@@ -50,17 +51,13 @@ fn eval_statement(statement: &Statement, env: &Env) -> Result<Rc<Object>, EvalEr
             if let TokenKind::IDENTIFIER { name } = &id.kind {
                 env.borrow_mut().set(name.clone(), obj);
             }
-            return Ok(Rc::new(Object::Null));
+            Ok(Rc::new(Object::Null))
         }
     }
 }
 
 fn is_truthy(obj: &Object) -> bool {
-    match obj {
-        Object::Null => return false,
-        Object::Boolean(false) => return false,
-        _ => true,
-    }
+    !matches!(obj, Object::Null | Object::Boolean(false))
 }
 
 fn eval_expression(expression: &Expression, env: &Env) -> Result<Rc<Object>, EvalError> {
@@ -70,14 +67,14 @@ fn eval_expression(expression: &Expression, env: &Env) -> Result<Rc<Object>, Eva
             op, operand: expr, ..
         }) => {
             let right = eval_expression(expr, &Rc::clone(env))?;
-            return eval_prefix(op, &right);
+            eval_prefix(op, &right)
         }
         Expression::INFIX(BinaryExpression {
             op, left, right, ..
         }) => {
             let left = eval_expression(left, &Rc::clone(env))?;
             let right = eval_expression(right, &Rc::clone(env))?;
-            return eval_infix(op, &left, &right);
+            eval_infix(op, &left, &right)
         }
         Expression::IF(IF {
             condition,
@@ -95,14 +92,10 @@ fn eval_expression(expression: &Expression, env: &Env) -> Result<Rc<Object>, Eva
                 }
             }
         }
-        Expression::IDENTIFIER(IDENTIFIER { name: id, .. }) => eval_identifier(&id, env),
-        Expression::FUNCTION(FunctionDeclaration { params, body, .. }) => {
-            return Ok(Rc::new(Object::Function(
-                params.clone(),
-                body.clone(),
-                Rc::clone(env),
-            )));
-        }
+        Expression::IDENTIFIER(IDENTIFIER { name: id, .. }) => eval_identifier(id, env),
+        Expression::FUNCTION(FunctionDeclaration { params, body, .. }) => Ok(Rc::new(
+            Object::Function(params.clone(), body.clone(), Rc::clone(env)),
+        )),
         Expression::FunctionCall(FunctionCall {
             callee, arguments, ..
         }) => {
@@ -125,34 +118,34 @@ fn eval_expression(expression: &Expression, env: &Env) -> Result<Rc<Object>, Eva
 fn eval_index_expression(left: &Rc<Object>, index: &Rc<Object>) -> Result<Rc<Object>, EvalError> {
     match (&**left, &**index) {
         (Object::Array(arr), Object::Integer(idx)) => match arr.get(*idx as usize) {
-            Some(obj) => return Ok(Rc::clone(obj)),
-            None => return Ok(Rc::new(Object::Null)),
+            Some(obj) => Ok(Rc::clone(obj)),
+            None => Ok(Rc::new(Object::Null)),
         },
         (Object::Hash(map), key) => {
             if !(key.is_hashable()) {
-                return Err(format!("not a valid hash key"));
+                return Err("not a valid hash key".to_string());
             }
 
             match map.get(key) {
-                Some(obj) => return Ok(Rc::clone(obj)),
-                None => return Ok(Rc::new(Object::Null)),
+                Some(obj) => Ok(Rc::clone(obj)),
+                None => Ok(Rc::new(Object::Null)),
             }
         }
-        _ => return Err(format!("index operator not supported for {}", left)),
+        _ => Err(format!("index operator not supported for {}", left)),
     }
 }
 
-fn apply_function(function: &Rc<Object>, args: &Vec<Rc<Object>>) -> Result<Rc<Object>, EvalError> {
+fn apply_function(function: &Rc<Object>, args: &[Rc<Object>]) -> Result<Rc<Object>, EvalError> {
     match &**function {
         Object::Function(params, body, env) => {
-            let mut env = Environment::new_enclosed_environment(&env);
+            let mut env = Environment::new_enclosed_environment(env);
 
             params.iter().enumerate().for_each(|(i, param)| {
                 env.set(param.name.clone(), args[i].clone());
             });
 
             let evaluated = eval_block_statements(&body.body, &Rc::new(RefCell::new(env)))?;
-            return unwrap_return(evaluated);
+            unwrap_return(evaluated)
         }
         Object::Builtin(b) => Ok(b(args.to_vec())),
         f => Err(format!("expected {} to be a function", f)),
@@ -161,7 +154,7 @@ fn apply_function(function: &Rc<Object>, args: &Vec<Rc<Object>>) -> Result<Rc<Ob
 
 fn unwrap_return(obj: Rc<Object>) -> Result<Rc<Object>, EvalError> {
     if let Object::ReturnValue(val) = &*obj {
-        Ok(Rc::clone(&val))
+        Ok(Rc::clone(val))
     } else {
         Ok(obj)
     }
@@ -212,14 +205,10 @@ fn eval_prefix_minus(expr: &Object) -> Result<Rc<Object>, EvalError> {
 
 fn eval_infix(op: &Token, left: &Object, right: &Object) -> Result<Rc<Object>, EvalError> {
     match (left, right) {
-        (Object::Integer(left), Object::Integer(right)) => {
-            return eval_integer_infix(op, *left, *right);
-        }
-        (Object::Boolean(left), Object::Boolean(right)) => {
-            return eval_boolean_infix(op, *left, *right);
-        }
+        (Object::Integer(left), Object::Integer(right)) => eval_integer_infix(op, *left, *right),
+        (Object::Boolean(left), Object::Boolean(right)) => eval_boolean_infix(op, *left, *right),
         (Object::String(left), Object::String(right)) => {
-            return eval_string_infix(op, left.to_string(), right.to_string());
+            eval_string_infix(op, left.to_string(), right.to_string())
         }
         _ => Err(format!(
             "eval infix error for op: {}, left: {}, right: {}",
@@ -272,8 +261,9 @@ fn eval_literal(literal: &Literal, env: &Env) -> Result<Rc<Object>, EvalError> {
         Literal::String(StringType { raw: s, .. }) => Ok(Rc::from(Object::String(s.clone()))),
         Literal::Array(Array { elements, .. }) => {
             let list = eval_expressions(elements, env)?;
-            return Ok(Rc::from(Object::Array(list)));
+            Ok(Rc::from(Object::Array(list)))
         }
+        #[allow(clippy::mutable_key_type)]
         Literal::Hash(Hash { elements: map, .. }) => {
             let mut hash_map = HashMap::new();
 
@@ -286,7 +276,7 @@ fn eval_literal(literal: &Literal, env: &Env) -> Result<Rc<Object>, EvalError> {
                 hash_map.insert(key, value);
             }
 
-            return Ok(Rc::new(Object::Hash(hash_map)));
+            Ok(Rc::new(Object::Hash(hash_map)))
         } // l => return Err(format!("unknown literal: {}", *l))
     }
 }

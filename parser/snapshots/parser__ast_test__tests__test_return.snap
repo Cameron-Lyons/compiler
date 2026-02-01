@@ -1,0 +1,30 @@
+---
+source: parser/ast_test.rs
+expression: return 3
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "ReturnStatement",
+        "argument": {
+          "type": "Integer",
+          "raw": 3,
+          "span": {
+            "start": 7,
+            "end": 8
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 8
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 9
+    }
+  }
+}

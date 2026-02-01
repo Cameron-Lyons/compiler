@@ -1,0 +1,39 @@
+---
+source: parser/ast_test.rs
+expression: "-3"
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "UnaryExpression",
+        "op": {
+          "kind": {
+            "type": "MINUS"
+          },
+          "span": {
+            "start": 0,
+            "end": 1
+          }
+        },
+        "operand": {
+          "type": "Integer",
+          "raw": 3,
+          "span": {
+            "start": 1,
+            "end": 2
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 2
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 3
+    }
+  }
+}

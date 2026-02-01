@@ -17,7 +17,7 @@ pub mod environment;
 pub type EvalError = String;
 pub type BuiltinFunc = fn(Vec<Rc<Object>>) -> Rc<Object>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
@@ -31,6 +31,29 @@ pub enum Object {
     Error(String),
     CompiledFunction(Rc<CompiledFunction>),
     ClosureObj(Closure),
+}
+
+impl PartialEq for Object {
+    #[allow(unpredictable_function_pointer_comparisons)]
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object::Integer(a), Object::Integer(b)) => a == b,
+            (Object::Boolean(a), Object::Boolean(b)) => a == b,
+            (Object::String(a), Object::String(b)) => a == b,
+            (Object::Array(a), Object::Array(b)) => a == b,
+            (Object::Hash(a), Object::Hash(b)) => a == b,
+            (Object::Null, Object::Null) => true,
+            (Object::ReturnValue(a), Object::ReturnValue(b)) => a == b,
+            (Object::Function(ap, ab, ae), Object::Function(bp, bb, be)) => {
+                ap == bp && ab == bb && ae == be
+            }
+            (Object::Builtin(a), Object::Builtin(b)) => std::ptr::fn_addr_eq(*a, *b),
+            (Object::Error(a), Object::Error(b)) => a == b,
+            (Object::CompiledFunction(a), Object::CompiledFunction(b)) => a == b,
+            (Object::ClosureObj(a), Object::ClosureObj(b)) => a == b,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -79,10 +102,10 @@ impl fmt::Display for Object {
 
 impl Object {
     pub fn is_hashable(&self) -> bool {
-        match self {
-            Object::Integer(_) | Object::Boolean(_) | Object::String(_) => return true,
-            _ => return false,
-        }
+        matches!(
+            self,
+            Object::Integer(_) | Object::Boolean(_) | Object::String(_)
+        )
     }
 }
 

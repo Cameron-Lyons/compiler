@@ -1,0 +1,88 @@
+---
+source: parser/ast_test.rs
+expression: "if (x < y) { x } else { y }"
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "IF",
+        "condition": {
+          "type": "BinaryExpression",
+          "op": {
+            "kind": {
+              "type": "LT"
+            },
+            "span": {
+              "start": 6,
+              "end": 7
+            }
+          },
+          "left": {
+            "type": "IDENTIFIER",
+            "name": "x",
+            "span": {
+              "start": 4,
+              "end": 5
+            }
+          },
+          "right": {
+            "type": "IDENTIFIER",
+            "name": "y",
+            "span": {
+              "start": 8,
+              "end": 9
+            }
+          },
+          "span": {
+            "start": 4,
+            "end": 9
+          }
+        },
+        "consequent": {
+          "type": "BlockStatement",
+          "body": [
+            {
+              "type": "IDENTIFIER",
+              "name": "x",
+              "span": {
+                "start": 13,
+                "end": 14
+              }
+            }
+          ],
+          "span": {
+            "start": 11,
+            "end": 16
+          }
+        },
+        "alternate": {
+          "type": "BlockStatement",
+          "body": [
+            {
+              "type": "IDENTIFIER",
+              "name": "y",
+              "span": {
+                "start": 24,
+                "end": 25
+              }
+            }
+          ],
+          "span": {
+            "start": 22,
+            "end": 27
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 27
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 28
+    }
+  }
+}

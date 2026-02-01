@@ -51,6 +51,12 @@ pub struct EmittedInstruction {
 
 type CompileError = String;
 
+impl Default for Compiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Compiler {
     const PLACEHOLDER_ADDRESS: usize = 0;
 
@@ -298,7 +304,7 @@ impl Compiler {
     }
 
     pub fn emit(&mut self, op: Opcode, operands: &[usize]) -> usize {
-        let ins = make_instructions(op, operands).unwrap();
+        let ins = make_instructions(op, operands);
         let pos = self.add_instructions(&ins);
         self.set_last_instruction(op, pos);
         pos
@@ -361,14 +367,14 @@ impl Compiler {
 
     fn replace_last_pop_with_return(&mut self) {
         let last_pos = self.scopes[self.scope_index].last_instruction.position;
-        let ins = make_instructions(OpReturnValue, &[]).unwrap();
+        let ins = make_instructions(OpReturnValue, &[]);
         self.replace_instruction(last_pos, &ins);
         self.scopes[self.scope_index].last_instruction.opcode = OpReturnValue;
     }
 
     fn change_operand(&mut self, pos: usize, operand: usize) {
         let op = cast_u8_to_opcode(self.current_instruction().bytes[pos]);
-        let ins = make_instructions(op, &[operand]).unwrap();
+        let ins = make_instructions(op, &[operand]);
         self.replace_instruction(pos, &ins);
     }
 

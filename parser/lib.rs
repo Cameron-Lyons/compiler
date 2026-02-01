@@ -1,5 +1,7 @@
 pub mod ast;
+#[cfg(test)]
 mod ast_test;
+#[cfg(test)]
 mod parser_test;
 mod precedences;
 
@@ -29,14 +31,13 @@ impl<'a> Parser<'a> {
         let cur = lexer.next_token();
         let next = lexer.next_token();
         let errors = Vec::new();
-        let p = Parser {
+
+        Parser {
             lexer,
             current_token: cur,
             peek_token: next,
             errors,
-        };
-
-        return p;
+        }
     }
 
     fn next_token(&mut self) {
@@ -74,9 +75,9 @@ impl<'a> Parser<'a> {
         program.span.end = self.current_token.span.end;
 
         if self.errors.is_empty() {
-            return Ok(program);
+            Ok(program)
         } else {
-            return Err(self.errors.clone());
+            Err(self.errors.clone())
         }
     }
 
@@ -93,18 +94,15 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let name = self.current_token.clone();
-        let mut ident_name_str = None;
-        match &self.current_token.kind {
-            TokenKind::IDENTIFIER { name } => {
-                ident_name_str = Some(name.clone());
-            }
+        let ident_name_str = match &self.current_token.kind {
+            TokenKind::IDENTIFIER { name } => Some(name.clone()),
             _ => return Err(format!("{} not an identifier", self.current_token)),
         };
 
         self.expect_peek(&TokenKind::ASSIGN)?;
         self.next_token();
 
-        let mut value = self.parse_expression(Precedence::LOWEST)?.0;
+        let mut value = self.parse_expression(Precedence::Lowest)?.0;
         if let (Some(ident_name), Expression::FUNCTION(ref mut f)) = (ident_name_str, &mut value) {
             f.name = ident_name;
         }
@@ -115,32 +113,32 @@ impl<'a> Parser<'a> {
 
         let end = self.current_token.span.end;
 
-        return Ok(Statement::Let(Let {
+        Ok(Statement::Let(Let {
             identifier: name,
             expr: value,
             span: Span { start, end },
-        }));
+        }))
     }
 
     fn parse_return_statement(&mut self) -> Result<Statement, ParseError> {
         let start = self.current_token.span.start;
         self.next_token();
 
-        let value = self.parse_expression(Precedence::LOWEST)?.0;
+        let value = self.parse_expression(Precedence::Lowest)?.0;
 
         if self.peek_token_is(&TokenKind::SEMICOLON) {
             self.next_token();
         }
         let end = self.current_token.span.end;
 
-        return Ok(Statement::Return(ReturnStatement {
+        Ok(Statement::Return(ReturnStatement {
             argument: value,
             span: Span { start, end },
-        }));
+        }))
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, ParseError> {
-        let expr = self.parse_expression(Precedence::LOWEST)?.0;
+        let expr = self.parse_expression(Precedence::Lowest)?.0;
         if self.peek_token_is(&TokenKind::SEMICOLON) {
             self.next_token();
         }
@@ -190,26 +188,20 @@ impl<'a> Parser<'a> {
     fn parse_prefix_expression(&mut self) -> Result<Expression, ParseError> {
         // this is prefix fn map :)
         match &self.current_token.kind {
-            TokenKind::IDENTIFIER { name } => {
-                return Ok(Expression::IDENTIFIER(IDENTIFIER {
-                    name: name.clone(),
-                    span: self.current_token.clone().span,
-                }))
-            }
-            TokenKind::INT(i) => {
-                return Ok(Expression::LITERAL(Literal::Integer(Integer {
-                    raw: *i,
-                    span: self.current_token.clone().span,
-                })))
-            }
-            TokenKind::STRING(s) => {
-                return Ok(Expression::LITERAL(Literal::String(StringType {
-                    raw: s.to_string(),
-                    span: self.current_token.clone().span,
-                })))
-            }
+            TokenKind::IDENTIFIER { name } => Ok(Expression::IDENTIFIER(IDENTIFIER {
+                name: name.clone(),
+                span: self.current_token.clone().span,
+            })),
+            TokenKind::INT(i) => Ok(Expression::LITERAL(Literal::Integer(Integer {
+                raw: *i,
+                span: self.current_token.clone().span,
+            }))),
+            TokenKind::STRING(s) => Ok(Expression::LITERAL(Literal::String(StringType {
+                raw: s.to_string(),
+                span: self.current_token.clone().span,
+            }))),
             b @ TokenKind::TRUE | b @ TokenKind::FALSE => {
-                return Ok(Expression::LITERAL(Literal::Boolean(Boolean {
+                Ok(Expression::LITERAL(Literal::Boolean(Boolean {
                     raw: *b == TokenKind::TRUE,
                     span: self.current_token.clone().span,
                 })))
@@ -218,30 +210,30 @@ impl<'a> Parser<'a> {
                 let start = self.current_token.span.start;
                 let prefix_op = self.current_token.clone();
                 self.next_token();
-                let (expr, span) = self.parse_expression(Precedence::PREFIX)?;
-                return Ok(Expression::PREFIX(UnaryExpression {
+                let (expr, span) = self.parse_expression(Precedence::Prefix)?;
+                Ok(Expression::PREFIX(UnaryExpression {
                     op: prefix_op,
                     operand: Box::new(expr),
                     span: Span {
                         start,
                         end: span.end,
                     },
-                }));
+                }))
             }
             TokenKind::LPAREN => {
                 self.next_token();
-                let expr = self.parse_expression(Precedence::LOWEST)?.0;
+                let expr = self.parse_expression(Precedence::Lowest)?.0;
                 self.expect_peek(&TokenKind::RPAREN)?;
-                return Ok(expr);
+                Ok(expr)
             }
             TokenKind::IF => self.parse_if_expression(),
             TokenKind::FUNCTION => self.parse_fn_expression(),
             TokenKind::LBRACKET => {
                 let (elements, span) = self.parse_expression_list(&TokenKind::RBRACKET)?;
-                return Ok(Expression::LITERAL(Literal::Array(Array {
+                Ok(Expression::LITERAL(Literal::Array(Array {
                     elements,
                     span,
-                })));
+                })))
             }
             TokenKind::LBRACE => self.parse_hash_expression(),
             _ => Err(format!(
@@ -270,7 +262,7 @@ impl<'a> Parser<'a> {
                 let precedence_value = get_token_precedence(&self.current_token.kind);
                 self.next_token();
                 let (right, span) = self.parse_expression(precedence_value).unwrap();
-                return Some(Ok(Expression::INFIX(BinaryExpression {
+                Some(Ok(Expression::INFIX(BinaryExpression {
                     op: infix_op,
                     left: Box::new(left.clone()),
                     right: Box::new(right),
@@ -278,15 +270,15 @@ impl<'a> Parser<'a> {
                         start: left_start,
                         end: span.end,
                     },
-                })));
+                })))
             }
             TokenKind::LPAREN => {
                 self.next_token();
-                return Some(self.parse_fn_call_expression(left.clone()));
+                Some(self.parse_fn_call_expression(left.clone()))
             }
             TokenKind::LBRACKET => {
                 self.next_token();
-                return Some(self.parse_index_expression(left.clone()));
+                Some(self.parse_index_expression(left.clone()))
             }
             _ => None,
         }
@@ -297,7 +289,7 @@ impl<'a> Parser<'a> {
         self.expect_peek(&TokenKind::LPAREN)?;
         self.next_token();
 
-        let condition = self.parse_expression(Precedence::LOWEST)?.0;
+        let condition = self.parse_expression(Precedence::Lowest)?.0;
         self.expect_peek(&TokenKind::RPAREN)?;
         self.expect_peek(&TokenKind::LBRACE)?;
 
@@ -313,12 +305,12 @@ impl<'a> Parser<'a> {
 
         let end = self.current_token.span.end;
 
-        return Ok(Expression::IF(IF {
+        Ok(Expression::IF(IF {
             condition: Box::new(condition),
             consequent,
             alternate,
             span: Span { start, end },
-        }));
+        }))
     }
 
     fn parse_block_statement(&mut self) -> Result<BlockStatement, ParseError> {
@@ -404,7 +396,7 @@ impl<'a> Parser<'a> {
 
         self.expect_peek(&TokenKind::RPAREN)?;
 
-        return Ok(params);
+        Ok(params)
     }
 
     fn parse_fn_call_expression(&mut self, expr: Expression) -> Result<Expression, ParseError> {
@@ -416,7 +408,7 @@ impl<'a> Parser<'a> {
         match &expr {
             Expression::IDENTIFIER(i) => start = i.span.start,
             Expression::FUNCTION(f) => start = f.span.start,
-            _ => return Err(format!("expected function")),
+            _ => return Err("expected function".to_string()),
         }
         let callee = Box::new(expr);
 
@@ -441,34 +433,34 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
-        expr_list.push(self.parse_expression(Precedence::LOWEST)?.0);
+        expr_list.push(self.parse_expression(Precedence::Lowest)?.0);
 
         while self.peek_token_is(&TokenKind::COMMA) {
             self.next_token();
             self.next_token();
-            expr_list.push(self.parse_expression(Precedence::LOWEST)?.0);
+            expr_list.push(self.parse_expression(Precedence::Lowest)?.0);
         }
 
         self.expect_peek(end)?;
         let end = self.current_token.span.end;
 
-        return Ok((expr_list, Span { start, end }));
+        Ok((expr_list, Span { start, end }))
     }
 
     fn parse_index_expression(&mut self, left: Expression) -> Result<Expression, ParseError> {
         let start = self.current_token.span.start;
         self.next_token();
-        let index = self.parse_expression(Precedence::LOWEST)?.0;
+        let index = self.parse_expression(Precedence::Lowest)?.0;
 
         self.expect_peek(&TokenKind::RBRACKET)?;
 
         let end = self.current_token.span.end;
 
-        return Ok(Expression::Index(Index {
+        Ok(Expression::Index(Index {
             object: Box::new(left),
             index: Box::new(index),
             span: Span { start, end },
-        }));
+        }))
     }
 
     fn parse_hash_expression(&mut self) -> Result<Expression, ParseError> {
@@ -477,12 +469,12 @@ impl<'a> Parser<'a> {
         while !self.peek_token_is(&TokenKind::RBRACE) {
             self.next_token();
 
-            let key = self.parse_expression(Precedence::LOWEST)?.0;
+            let key = self.parse_expression(Precedence::Lowest)?.0;
 
             self.expect_peek(&TokenKind::COLON)?;
 
             self.next_token();
-            let value = self.parse_expression(Precedence::LOWEST)?.0;
+            let value = self.parse_expression(Precedence::Lowest)?.0;
 
             map.push((key, value));
 
@@ -515,5 +507,5 @@ pub fn parse_ast_json_string(input: &str) -> Result<String, ParseErrors> {
         Err(e) => return Err(e),
     };
 
-    return Ok(ast);
+    Ok(ast)
 }

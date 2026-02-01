@@ -11,8 +11,8 @@ pub struct Instructions {
 
 #[derive(Debug, Clone)]
 pub struct OpcodeDefinition {
-    name: &'static str,
-    operand_widths: &'static [usize],
+    pub name: &'static str,
+    pub operand_widths: &'static [usize],
 }
 
 #[repr(u8)]
@@ -52,7 +52,7 @@ pub enum Opcode {
 
 static DEFINITIONS: OnceLock<HashMap<Opcode, OpcodeDefinition>> = OnceLock::new();
 
-fn definitions() -> &'static HashMap<Opcode, OpcodeDefinition> {
+pub fn definitions() -> &'static HashMap<Opcode, OpcodeDefinition> {
     DEFINITIONS.get_or_init(|| {
         let mut m = HashMap::new();
         insert_def(&mut m, Opcode::OpConst, "OpConst", &[2]);
@@ -252,7 +252,7 @@ impl TryFrom<u8> for Opcode {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value < Opcode::COUNT as u8 {
             // SAFETY: We've checked the bounds above
-            Ok(unsafe { std::mem::transmute(value) })
+            Ok(unsafe { std::mem::transmute::<u8, Opcode>(value) })
         } else {
             Err(())
         }
@@ -264,8 +264,8 @@ pub fn cast_u8_to_opcode(byte: u8) -> Opcode {
     Opcode::try_from(byte).unwrap_or_else(|_| panic!("Invalid opcode byte: 0x{:02x}", byte))
 }
 
-pub fn make_instructions(op: Opcode, operands: &[usize]) -> Result<Instructions, String> {
-    make(op, operands)
+pub fn make_instructions(op: Opcode, operands: &[usize]) -> Instructions {
+    make(op, operands).unwrap()
 }
 
 pub fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {

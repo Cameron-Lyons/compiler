@@ -1,0 +1,23 @@
+---
+source: parser/ast_test.rs
+expression: "\"jw\""
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "String",
+        "raw": "jw",
+        "span": {
+          "start": 0,
+          "end": 4
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 5
+    }
+  }
+}

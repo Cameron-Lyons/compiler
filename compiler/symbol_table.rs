@@ -1,6 +1,6 @@
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::cell::{RefCell, Cell};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SymbolScope {
@@ -24,6 +24,12 @@ pub struct SymbolTable {
     symbols: RefCell<HashMap<String, Rc<Symbol>>>,
     free_symbols: RefCell<Vec<Rc<Symbol>>>,
     num_definitions: Cell<usize>,
+}
+
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SymbolTable {
@@ -121,7 +127,9 @@ impl SymbolTable {
             index: self.free_symbols.borrow().len() - 1,
             scope: SymbolScope::Free,
         });
-        self.symbols.borrow_mut().insert(original.name.clone(), Rc::clone(&symbol));
+        self.symbols
+            .borrow_mut()
+            .insert(original.name.clone(), Rc::clone(&symbol));
         symbol
     }
 

@@ -66,7 +66,7 @@ pub fn rest(args: Vec<Rc<Object>>) -> Rc<Object> {
                 let new_array = s[1..len].to_vec();
                 return Rc::new(Object::Array(new_array));
             }
-            return Rc::new(Object::Null);
+            Rc::new(Object::Null)
         }
         o => Rc::new(Object::Error(format!(
             "builtin rest not supported for for type {}",
@@ -82,7 +82,7 @@ pub fn push(args: Vec<Rc<Object>>) -> Rc<Object> {
         Object::Array(s) => {
             let mut new_array = s.clone();
             new_array.push(obj);
-            return Rc::new(Object::Array(new_array));
+            Rc::new(Object::Array(new_array))
         }
         o => Rc::new(Object::Error(format!(
             "builtin push not supported for for type {}",

@@ -33,7 +33,7 @@ mod tests {
 
         for t in tests {
             let ins = make_instructions(t.op, &t.operands);
-            assert_eq!(ins.data, t.expected)
+            assert_eq!(ins.bytes, t.expected)
         }
     }
 
@@ -60,32 +60,33 @@ mod tests {
 
         for t in tests {
             let ins = make_instructions(t.op, &t.operands);
-            let (operands_read, n) = read_operands(DEFINITIONS.get(&t.op).unwrap(), &ins.data[1..]);
+            let (operands_read, n) =
+                read_operands(definitions().get(&t.op).unwrap(), &ins.bytes[1..]).unwrap();
             assert_eq!(operands_read, t.operands);
             assert_eq!(n, t.bytes_read);
         }
     }
+
     #[test]
     fn test_instructions_legal() {
         let opcode_count = Opcode::COUNT;
-        let keys_count = DEFINITIONS.keys().count();
-        let op_keys = DEFINITIONS
+        let keys_count = definitions().keys().count();
+        let op_keys = definitions()
             .values()
             .map(|d| d.name.to_string())
             .collect::<HashSet<String>>();
         assert_eq!(opcode_count, keys_count);
-        // description is distinct
         assert_eq!(opcode_count, op_keys.len());
     }
 
     #[test]
     fn test_instructions_string() {
-        let ins = vec![
-            make_instructions(OpAdd, &vec![]),
-            make_instructions(OpGetLocal, &vec![1]),
-            make_instructions(OpConst, &vec![2]),
-            make_instructions(OpConst, &vec![65535]),
-            make_instructions(OpClosure, &vec![65535, 255]),
+        let ins = [
+            make_instructions(OpAdd, &[]),
+            make_instructions(OpGetLocal, &[1]),
+            make_instructions(OpConst, &[2]),
+            make_instructions(OpConst, &[65535]),
+            make_instructions(OpClosure, &[65535, 255]),
         ];
 
         let expected = "0000 OpAdd\n\
@@ -93,13 +94,11 @@ mod tests {
                              0003 OpConst 2\n\
                              0006 OpConst 65535\n\
                              0009 OpClosure 65535 255\n";
-        // how-to-concatenate-immutable-vectors-in-one-line
-        // https://stackoverflow.com/a/69578632/1713757
-        let merged_ins = ins.iter().fold(vec![], |sum, i| {
-            [sum.as_slice(), i.data.as_slice()].concat()
+        let merged_ins = ins.iter().fold(Vec::<u8>::new(), |sum, i| {
+            [sum.as_slice(), i.bytes.as_slice()].concat()
         });
 
-        let concatted = Instructions { data: merged_ins }.string();
+        let concatted = Instructions { bytes: merged_ins }.string();
 
         assert_eq!(concatted, expected);
     }

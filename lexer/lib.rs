@@ -1,5 +1,6 @@
 use crate::token::{lookup_identifier, Span, Token, TokenKind};
 
+#[cfg(test)]
 mod lexer_test;
 pub mod token;
 
@@ -20,18 +21,16 @@ impl<'a> Lexer<'a> {
         };
 
         l.read_char();
-        return l;
+        l
     }
 
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = 0 as char
+        } else if let Some(ch) = self.input.chars().nth(self.read_position) {
+            self.ch = ch;
         } else {
-            if let Some(ch) = self.input.chars().nth(self.read_position) {
-                self.ch = ch;
-            } else {
-                panic!("read out of range")
-            }
+            panic!("read out of range")
         }
 
         self.position = self.read_position;
@@ -41,12 +40,10 @@ impl<'a> Lexer<'a> {
     fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
             0 as char
+        } else if let Some(ch) = self.input.chars().nth(self.read_position) {
+            ch
         } else {
-            if let Some(ch) = self.input.chars().nth(self.read_position) {
-                ch
-            } else {
-                panic!("read out of range")
-            }
+            panic!("read out of range")
         }
     }
 
@@ -114,13 +111,13 @@ impl<'a> Lexer<'a> {
         };
 
         self.read_char();
-        return Token {
+        Token {
             span: Span {
                 start: self.position - 1,
                 end: self.read_position - 1,
             },
             kind: t,
-        };
+        }
     }
 
     fn skip_whitespace(&mut self) {
@@ -153,7 +150,7 @@ impl<'a> Lexer<'a> {
         }
 
         let x = self.input[pos..self.position].to_string();
-        return (pos, self.position, x);
+        (pos, self.position, x)
     }
 
     fn read_number(&mut self) -> (usize, usize, i64) {
@@ -164,7 +161,7 @@ impl<'a> Lexer<'a> {
 
         let x = self.input[pos..self.position].parse().unwrap();
 
-        return (pos, self.position, x);
+        (pos, self.position, x)
     }
 
     fn read_string(&mut self) -> (usize, usize, String) {
@@ -182,7 +179,7 @@ impl<'a> Lexer<'a> {
         if self.ch == '"' {
             self.read_char();
         }
-        return (pos - 1, self.position, x);
+        (pos - 1, self.position, x)
     }
 }
 
@@ -191,5 +188,5 @@ fn is_letter(c: char) -> bool {
 }
 
 fn is_digit(c: char) -> bool {
-    c >= '0' && c <= '9'
+    c.is_ascii_digit()
 }

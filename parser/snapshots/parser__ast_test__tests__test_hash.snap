@@ -1,0 +1,42 @@
+---
+source: parser/ast_test.rs
+expression: "{\"a\": 1}"
+---
+{
+  "Program": {
+    "type": "Program",
+    "body": [
+      {
+        "type": "Hash",
+        "elements": [
+          [
+            {
+              "type": "String",
+              "raw": "a",
+              "span": {
+                "start": 1,
+                "end": 4
+              }
+            },
+            {
+              "type": "Integer",
+              "raw": 1,
+              "span": {
+                "start": 6,
+                "end": 7
+              }
+            }
+          ]
+        ],
+        "span": {
+          "start": 0,
+          "end": 8
+        }
+      }
+    ],
+    "span": {
+      "start": 0,
+      "end": 9
+    }
+  }
+}
