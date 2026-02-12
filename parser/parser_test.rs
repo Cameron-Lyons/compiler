@@ -161,6 +161,30 @@ mod tests {
     }
 
     #[test]
+    fn test_while_expression() {
+        let tt = [
+            ("while (x < 5) { x }", "while ((x < 5)) { x }"),
+            ("while (true) { let x = 1; }", "while (true) { let x = 1; }"),
+        ];
+        verify_program(&tt);
+    }
+
+    #[test]
+    fn test_new_infix_operators() {
+        let tt = [
+            ("5 <= 10;", "(5 <= 10)"),
+            ("10 >= 5;", "(10 >= 5)"),
+            ("10 % 3;", "(10 % 3)"),
+            ("a <= b", "(a <= b)"),
+            ("a >= b", "(a >= b)"),
+            ("a % b", "(a % b)"),
+            ("a + b % c", "(a + (b % c))"),
+            ("a <= b == true", "((a <= b) == true)"),
+        ];
+        verify_program(&tt);
+    }
+
+    #[test]
     fn test_hash_literal_expression() {
         let test_case = [
             (r#"{"a": 1}"#, r#"{"a": 1}"#),

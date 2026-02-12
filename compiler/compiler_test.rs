@@ -446,4 +446,90 @@ mod tests {
 
         run_compiler_test(tests);
     }
+
+    #[test]
+    fn test_while_loop() {
+        let tests = vec![
+            CompilerTestCase {
+                input: "while (true) { 10 }",
+                expected_constants: vec![Object::Integer(10)],
+                expected_instructions: vec![
+                    make_instructions(OpTrue, &[]),
+                    make_instructions(OpJumpNotTruthy, &[11]),
+                    make_instructions(OpConst, &[0]),
+                    make_instructions(OpPop, &[]),
+                    make_instructions(OpJump, &[0]),
+                    make_instructions(OpNull, &[]),
+                ],
+            },
+            CompilerTestCase {
+                input: "while (true) { let x = 1; }",
+                expected_constants: vec![Object::Integer(1)],
+                expected_instructions: vec![
+                    make_instructions(OpTrue, &[]),
+                    make_instructions(OpJumpNotTruthy, &[13]),
+                    make_instructions(OpConst, &[0]),
+                    make_instructions(OpSetGlobal, &[0]),
+                    make_instructions(OpJump, &[0]),
+                    make_instructions(OpNull, &[]),
+                ],
+            },
+        ];
+
+        run_compiler_test(tests);
+    }
+
+    #[test]
+    fn test_lte_gte_modulo_compilation() {
+        let tests = vec![
+            CompilerTestCase {
+                input: "true <= false",
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    make_instructions(OpTrue, &[]),
+                    make_instructions(OpFalse, &[]),
+                    make_instructions(OpGreaterThan, &[]),
+                    make_instructions(OpBang, &[]),
+                    make_instructions(OpPop, &[]),
+                ],
+            },
+            CompilerTestCase {
+                input: "true >= false",
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    make_instructions(OpFalse, &[]),
+                    make_instructions(OpTrue, &[]),
+                    make_instructions(OpGreaterThan, &[]),
+                    make_instructions(OpBang, &[]),
+                    make_instructions(OpPop, &[]),
+                ],
+            },
+            CompilerTestCase {
+                input: "5 <= 3",
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    make_instructions(OpFalse, &[]),
+                    make_instructions(OpPop, &[]),
+                ],
+            },
+            CompilerTestCase {
+                input: "3 >= 5",
+                expected_constants: vec![],
+                expected_instructions: vec![
+                    make_instructions(OpFalse, &[]),
+                    make_instructions(OpPop, &[]),
+                ],
+            },
+            CompilerTestCase {
+                input: "5 % 3",
+                expected_constants: vec![Object::Integer(2)],
+                expected_instructions: vec![
+                    make_instructions(OpConst, &[0]),
+                    make_instructions(OpPop, &[]),
+                ],
+            },
+        ];
+
+        run_compiler_test(tests);
+    }
 }

@@ -70,6 +70,26 @@ mod tests {
     }
 
     #[test]
+    fn test_lexer_while() {
+        test_lexer_common("while", "while (x < 5) { x }");
+    }
+
+    #[test]
+    fn test_lexer_comparison_operators() {
+        test_lexer_common("comparison_operators", "5 <= 10 >= 3");
+    }
+
+    #[test]
+    fn test_lexer_modulo() {
+        test_lexer_common("modulo", "10 % 3");
+    }
+
+    #[test]
+    fn test_lexer_string_escapes() {
+        test_lexer_common("string_escapes", r#""\thello\nworld""#);
+    }
+
+    #[test]
     fn test_lexer_complex() {
         test_lexer_common(
             "complex",
