@@ -1,19 +1,17 @@
 use compiler::compiler::Compiler;
-use compiler::vm::VM;
+use compiler::vm::{Value, VM};
 
 use compiler::symbol_table::SymbolTable;
-use object::Object;
 use std::io::stdin;
 use std::io::{self, Write};
-use std::rc::Rc;
 
 use parser::parse;
 
 fn main() {
     let mut constants = vec![];
     let mut symbol_table = SymbolTable::new();
-    let mut globals: Vec<Rc<Object>> = (0..compiler::vm::GLOBAL_SIZE)
-        .map(|_| Rc::new(Object::Null))
+    let mut globals: Vec<Value> = (0..compiler::vm::GLOBAL_SIZE)
+        .map(|_| Value::Null)
         .collect();
     loop {
         print!(">> ");
@@ -38,8 +36,14 @@ fn main() {
         match compiler.compile(&program) {
             Ok(bytecodes) => {
                 let mut vm = VM::new_with_global_store(bytecodes, globals);
-                vm.run();
-                println!("{}", vm.last_popped_stack_elm().unwrap());
+                match vm.run() {
+                    Ok(()) => {
+                        println!("{}", vm.last_popped_stack_elm().unwrap());
+                    }
+                    Err(e) => {
+                        println!("VM error: {}", e);
+                    }
+                }
                 globals = vm.globals;
             }
             Err(e) => {

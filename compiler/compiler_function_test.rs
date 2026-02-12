@@ -12,13 +12,10 @@ mod tests {
             CompilerTestCase {
                 input: "fn() { return 5 + 10; }",
                 expected_constants: vec![
-                    Object::Integer(5),
-                    Object::Integer(10),
+                    Object::Integer(15),
                     Object::CompiledFunction(Rc::from(object::CompiledFunction {
                         instructions: concat_instructions(vec![
                             make_instructions(OpConst, &[0]),
-                            make_instructions(OpConst, &[1]),
-                            make_instructions(OpAdd, &[]),
                             make_instructions(OpReturnValue, &[]),
                         ])
                         .bytes,
@@ -27,20 +24,17 @@ mod tests {
                     })),
                 ],
                 expected_instructions: vec![
-                    make_instructions(OpClosure, &[2, 0]),
+                    make_instructions(OpClosure, &[1, 0]),
                     make_instructions(OpPop, &[]),
                 ],
             },
             CompilerTestCase {
                 input: "fn() { 5 + 10; }",
                 expected_constants: vec![
-                    Object::Integer(5),
-                    Object::Integer(10),
+                    Object::Integer(15),
                     Object::CompiledFunction(Rc::from(object::CompiledFunction {
                         instructions: concat_instructions(vec![
                             make_instructions(OpConst, &[0]),
-                            make_instructions(OpConst, &[1]),
-                            make_instructions(OpAdd, &[]),
                             make_instructions(OpReturnValue, &[]),
                         ])
                         .bytes,
@@ -49,7 +43,7 @@ mod tests {
                     })),
                 ],
                 expected_instructions: vec![
-                    make_instructions(OpClosure, &[2, 0]),
+                    make_instructions(OpClosure, &[1, 0]),
                     make_instructions(OpPop, &[]),
                 ],
             },

@@ -2,7 +2,7 @@ use object::builtins::BuiltIns;
 use std::rc::Rc;
 
 use object::Object;
-use parser::ast::{BlockStatement, Expression, Literal, Node, Statement};
+use parser::ast::{BlockStatement, Expression, Integer, Literal, Node, Statement};
 use parser::lexer::token::TokenKind;
 
 use crate::op_code::Opcode::*;
@@ -108,8 +108,8 @@ impl Compiler {
                     TokenKind::IDENTIFIER { name } => name,
                     _ => return Err("Expected identifier".to_string()),
                 };
-                let symbol = self.symbol_table.define(name);
                 self.compile_expr(&let_statement.expr)?;
+                let symbol = self.symbol_table.define(name);
                 if symbol.scope == SymbolScope::Global {
                     self.emit(Opcode::OpSetGlobal, &[symbol.index]);
                 } else {
@@ -176,6 +176,9 @@ impl Compiler {
                 }
             },
             Expression::PREFIX(prefix) => {
+                if let Some(folded) = self.try_constant_fold_prefix(prefix) {
+                    return folded;
+                }
                 self.compile_expr(&prefix.operand)?;
                 match prefix.op.kind {
                     TokenKind::MINUS => {
@@ -190,10 +193,28 @@ impl Compiler {
                 }
             }
             Expression::INFIX(infix) => {
+                if let Some(folded) = self.try_constant_fold_infix(infix) {
+                    return folded;
+                }
+
                 if infix.op.kind == TokenKind::LT {
                     self.compile_expr(&infix.right)?;
                     self.compile_expr(&infix.left)?;
                     self.emit(Opcode::OpGreaterThan, &[]);
+                    return Ok(());
+                }
+                if infix.op.kind == TokenKind::LTE {
+                    self.compile_expr(&infix.left)?;
+                    self.compile_expr(&infix.right)?;
+                    self.emit(Opcode::OpGreaterThan, &[]);
+                    self.emit(OpBang, &[]);
+                    return Ok(());
+                }
+                if infix.op.kind == TokenKind::GTE {
+                    self.compile_expr(&infix.right)?;
+                    self.compile_expr(&infix.left)?;
+                    self.emit(Opcode::OpGreaterThan, &[]);
+                    self.emit(OpBang, &[]);
                     return Ok(());
                 }
                 self.compile_expr(&infix.left)?;
@@ -203,6 +224,7 @@ impl Compiler {
                     TokenKind::MINUS => self.emit(OpSub, &[]),
                     TokenKind::ASTERISK => self.emit(OpMul, &[]),
                     TokenKind::SLASH => self.emit(OpDiv, &[]),
+                    TokenKind::PERCENT => self.emit(Opcode::OpModulo, &[]),
                     TokenKind::GT => self.emit(Opcode::OpGreaterThan, &[]),
                     TokenKind::EQ => self.emit(Opcode::OpEqual, &[]),
                     TokenKind::NotEq => self.emit(Opcode::OpNotEqual, &[]),
@@ -233,6 +255,16 @@ impl Compiler {
                 let after_alternative_location = self.current_instruction().bytes.len();
                 self.change_operand(jump_pos, after_alternative_location);
             }
+            Expression::While(while_node) => {
+                let loop_start = self.current_instruction().bytes.len();
+                self.compile_expr(&while_node.condition)?;
+                let jump_not_truthy = self.emit(OpJumpNotTruthy, &[Self::PLACEHOLDER_ADDRESS]);
+                self.compile_block_statement(&while_node.body)?;
+                self.emit(OpJump, &[loop_start]);
+                let after_loop = self.current_instruction().bytes.len();
+                self.change_operand(jump_not_truthy, after_loop);
+                self.emit(OpNull, &[]);
+            }
             Expression::Index(index) => {
                 self.compile_expr(&index.object)?;
                 self.compile_expr(&index.index)?;
@@ -240,11 +272,21 @@ impl Compiler {
             }
             Expression::FUNCTION(f) => {
                 self.enter_scope();
+                if !f.name.is_empty() {
+                    self.symbol_table.define_function_name(&f.name);
+                }
                 for param in &f.params {
                     self.symbol_table.define(&param.name);
                 }
                 self.compile_block_statement(&f.body)?;
                 if self.last_instruction_is(OpPop) {
+                    if self.is_tail_recursive_call(&f.body, &f.name) {
+                        let prev = self.scopes[self.scope_index].previous_instruction.clone();
+                        if prev.opcode == OpCall {
+                            self.scopes[self.scope_index].instructions.bytes[prev.position] =
+                                Opcode::OpTailCall as u8;
+                        }
+                    }
                     self.replace_last_pop_with_return();
                 }
                 if !self.last_instruction_is(OpReturnValue) {
@@ -394,5 +436,93 @@ impl Compiler {
         self.scope_index -= 1;
         self.symbol_table = self.symbol_table.outer().as_ref().unwrap().as_ref().clone();
         instructions
+    }
+
+    fn is_tail_recursive_call(&self, body: &BlockStatement, name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+        if let Some(Statement::Expr(Expression::FunctionCall(fc))) = body.body.last() {
+            if let Expression::IDENTIFIER(id) = &*fc.callee {
+                return id.name == name;
+            }
+        }
+        false
+    }
+
+    fn try_constant_fold_prefix(
+        &mut self,
+        prefix: &parser::ast::UnaryExpression,
+    ) -> Option<Result<(), CompileError>> {
+        if prefix.op.kind == TokenKind::MINUS {
+            if let Expression::LITERAL(Literal::Integer(Integer { raw, .. })) = &*prefix.operand {
+                let result = Object::Integer(-*raw);
+                let idx = self.add_constant(result);
+                self.emit(OpConst, &[idx]);
+                return Some(Ok(()));
+            }
+        }
+        if prefix.op.kind == TokenKind::BANG {
+            if let Expression::LITERAL(Literal::Boolean(b)) = &*prefix.operand {
+                if b.raw {
+                    self.emit(OpFalse, &[]);
+                } else {
+                    self.emit(OpTrue, &[]);
+                }
+                return Some(Ok(()));
+            }
+        }
+        None
+    }
+
+    fn try_constant_fold_infix(
+        &mut self,
+        infix: &parser::ast::BinaryExpression,
+    ) -> Option<Result<(), CompileError>> {
+        if let (
+            Expression::LITERAL(Literal::Integer(Integer { raw: left, .. })),
+            Expression::LITERAL(Literal::Integer(Integer { raw: right, .. })),
+        ) = (&*infix.left, &*infix.right)
+        {
+            let result = match infix.op.kind {
+                TokenKind::PLUS => Object::Integer(left + right),
+                TokenKind::MINUS => Object::Integer(left - right),
+                TokenKind::ASTERISK => Object::Integer(left * right),
+                TokenKind::SLASH => {
+                    if *right == 0 {
+                        return None;
+                    }
+                    Object::Integer(left / right)
+                }
+                TokenKind::PERCENT => {
+                    if *right == 0 {
+                        return None;
+                    }
+                    Object::Integer(left % right)
+                }
+                TokenKind::GT => Object::Boolean(left > right),
+                TokenKind::LT => Object::Boolean(left < right),
+                TokenKind::GTE => Object::Boolean(left >= right),
+                TokenKind::LTE => Object::Boolean(left <= right),
+                TokenKind::EQ => Object::Boolean(left == right),
+                TokenKind::NotEq => Object::Boolean(left != right),
+                _ => return None,
+            };
+            match result {
+                Object::Integer(_) => {
+                    let idx = self.add_constant(result);
+                    self.emit(OpConst, &[idx]);
+                }
+                Object::Boolean(true) => {
+                    self.emit(OpTrue, &[]);
+                }
+                Object::Boolean(false) => {
+                    self.emit(OpFalse, &[]);
+                }
+                _ => unreachable!(),
+            }
+            return Some(Ok(()));
+        }
+        None
     }
 }

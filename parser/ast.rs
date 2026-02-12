@@ -114,6 +114,7 @@ pub enum Expression {
     PREFIX(UnaryExpression),
     INFIX(BinaryExpression),
     IF(IF),
+    While(While),
     FUNCTION(FunctionDeclaration),
     FunctionCall(FunctionCall),
     Index(Index),
@@ -155,6 +156,14 @@ pub struct IF {
     pub condition: Box<Expression>,
     pub consequent: BlockStatement,
     pub alternate: Option<BlockStatement>,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, Hash, PartialEq)]
+#[serde(tag = "type")]
+pub struct While {
+    pub condition: Box<Expression>,
+    pub body: BlockStatement,
     pub span: Span,
 }
 
@@ -214,6 +223,11 @@ impl fmt::Display for Expression {
                 } else {
                     write!(f, "if {} {{ {} }}", condition, consequent,)
                 }
+            }
+            Expression::While(While {
+                condition, body, ..
+            }) => {
+                write!(f, "while ({}) {{ {} }}", condition, body)
             }
             Expression::FUNCTION(FunctionDeclaration {
                 name, params, body, ..

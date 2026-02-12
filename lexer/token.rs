@@ -45,8 +45,11 @@ pub enum TokenKind {
     ASTERISK, // *
     SLASH,    // /
 
-    LT, // <
-    GT, // >
+    LT,      // <
+    GT,      // >
+    LTE,     // <=
+    GTE,     // >=
+    PERCENT, // %
 
     EQ,    // ==
     NotEq, // !=
@@ -71,6 +74,7 @@ pub enum TokenKind {
     IF,
     ELSE,
     RETURN,
+    WHILE,
 }
 
 pub fn lookup_identifier(identifier: &str) -> TokenKind {
@@ -82,6 +86,7 @@ pub fn lookup_identifier(identifier: &str) -> TokenKind {
         "if" => TokenKind::IF,
         "else" => TokenKind::ELSE,
         "return" => TokenKind::RETURN,
+        "while" => TokenKind::WHILE,
         _ => TokenKind::IDENTIFIER {
             name: identifier.to_string(),
         },
@@ -102,6 +107,9 @@ impl fmt::Display for TokenKind {
             TokenKind::SLASH => write!(f, "/"),
             TokenKind::LT => write!(f, "<"),
             TokenKind::GT => write!(f, ">"),
+            TokenKind::LTE => write!(f, "<="),
+            TokenKind::GTE => write!(f, ">="),
+            TokenKind::PERCENT => write!(f, "%"),
             TokenKind::EQ => write!(f, "=="),
             TokenKind::NotEq => write!(f, "!="),
             TokenKind::COMMA => write!(f, ","),
@@ -119,6 +127,7 @@ impl fmt::Display for TokenKind {
             TokenKind::IF => write!(f, "if"),
             TokenKind::ELSE => write!(f, "else"),
             TokenKind::RETURN => write!(f, "return"),
+            TokenKind::WHILE => write!(f, "while"),
             TokenKind::ILLEGAL => write!(f, "ILLEGAL"),
             TokenKind::EOF => write!(f, "EOF"),
             TokenKind::COLON => write!(f, ":"),

@@ -52,6 +52,12 @@ impl SymbolTable {
     }
 
     pub fn define(&self, name: &str) -> Rc<Symbol> {
+        if let Some(existing) = self.symbols.borrow().get(name) {
+            if existing.scope == SymbolScope::Global || existing.scope == SymbolScope::Local {
+                return Rc::clone(existing);
+            }
+        }
+
         let scope = if self.outer.is_some() {
             SymbolScope::Local
         } else {

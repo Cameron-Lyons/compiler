@@ -76,8 +76,23 @@ impl<'a> Lexer<'a> {
             }
             '*' => TokenKind::ASTERISK,
             '/' => TokenKind::SLASH,
-            '<' => TokenKind::LT,
-            '>' => TokenKind::GT,
+            '<' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    TokenKind::LTE
+                } else {
+                    TokenKind::LT
+                }
+            }
+            '>' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    TokenKind::GTE
+                } else {
+                    TokenKind::GT
+                }
+            }
+            '%' => TokenKind::PERCENT,
             '{' => TokenKind::LBRACE,
             '}' => TokenKind::RBRACE,
             '[' => TokenKind::LBRACKET,
@@ -165,21 +180,35 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_string(&mut self) -> (usize, usize, String) {
-        let pos = self.position + 1;
+        let start = self.position;
+        let mut result = String::new();
         loop {
             self.read_char();
             if self.ch == '"' || self.ch == '\u{0}' {
                 break;
             }
+            if self.ch == '\\' {
+                self.read_char();
+                match self.ch {
+                    'n' => result.push('\n'),
+                    't' => result.push('\t'),
+                    'r' => result.push('\r'),
+                    '\\' => result.push('\\'),
+                    '"' => result.push('"'),
+                    _ => {
+                        result.push('\\');
+                        result.push(self.ch);
+                    }
+                }
+            } else {
+                result.push(self.ch);
+            }
         }
 
-        let x = self.input[pos..self.position].to_string();
-
-        // consume the end "
         if self.ch == '"' {
             self.read_char();
         }
-        (pos - 1, self.position, x)
+        (start, self.position, result)
     }
 }
 

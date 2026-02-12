@@ -48,6 +48,8 @@ pub enum Opcode {
     OpClosure,
     OpGetFree,
     OpCurrentClosure,
+    OpModulo,
+    OpTailCall,
 }
 
 static DEFINITIONS: OnceLock<HashMap<Opcode, OpcodeDefinition>> = OnceLock::new();
@@ -85,6 +87,8 @@ pub fn definitions() -> &'static HashMap<Opcode, OpcodeDefinition> {
         insert_def(&mut m, Opcode::OpClosure, "OpClosure", &[2, 1]);
         insert_def(&mut m, Opcode::OpGetFree, "OpGetFree", &[1]);
         insert_def(&mut m, Opcode::OpCurrentClosure, "OpCurrentClosure", &[]);
+        insert_def(&mut m, Opcode::OpModulo, "OpModulo", &[]);
+        insert_def(&mut m, Opcode::OpTailCall, "OpTailCall", &[1]);
         m
     })
 }

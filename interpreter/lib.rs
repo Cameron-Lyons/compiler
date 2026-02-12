@@ -92,6 +92,22 @@ fn eval_expression(expression: &Expression, env: &Env) -> Result<Rc<Object>, Eva
                 }
             }
         }
+        Expression::While(While {
+            condition, body, ..
+        }) => {
+            let mut result: Rc<Object> = Rc::new(Object::Null);
+            loop {
+                let cond = eval_expression(condition, &Rc::clone(env))?;
+                if !is_truthy(&cond) {
+                    break;
+                }
+                result = eval_block_statements(&body.body, env)?;
+                if let Object::ReturnValue(_) = &*result {
+                    return Ok(result);
+                }
+            }
+            Ok(result)
+        }
         Expression::IDENTIFIER(IDENTIFIER { name: id, .. }) => eval_identifier(id, env),
         Expression::FUNCTION(FunctionDeclaration { params, body, .. }) => Ok(Rc::new(
             Object::Function(params.clone(), body.clone(), Rc::clone(env)),
@@ -223,8 +239,11 @@ fn eval_integer_infix(op: &Token, left: i64, right: i64) -> Result<Rc<Object>, E
         TokenKind::MINUS => Object::Integer(left - right),
         TokenKind::ASTERISK => Object::Integer(left * right),
         TokenKind::SLASH => Object::Integer(left / right),
+        TokenKind::PERCENT => Object::Integer(left % right),
         TokenKind::LT => Object::Boolean(left < right),
         TokenKind::GT => Object::Boolean(left > right),
+        TokenKind::LTE => Object::Boolean(left <= right),
+        TokenKind::GTE => Object::Boolean(left >= right),
         TokenKind::EQ => Object::Boolean(left == right),
         TokenKind::NotEq => Object::Boolean(left != right),
         op => return Err(format!("Invalid infix operator {} for int", op)),

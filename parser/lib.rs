@@ -10,7 +10,7 @@ pub extern crate lexer;
 use crate::ast::{
     Array, BinaryExpression, BlockStatement, Boolean, Expression, FunctionCall,
     FunctionDeclaration, Hash, Index, Integer, Let, Literal, Node, Program, ReturnStatement,
-    Statement, StringType, UnaryExpression, IDENTIFIER, IF,
+    Statement, StringType, UnaryExpression, While, IDENTIFIER, IF,
 };
 use crate::precedences::{get_token_precedence, Precedence};
 use lexer::token::{Span, Token, TokenKind};
@@ -227,6 +227,7 @@ impl<'a> Parser<'a> {
                 Ok(expr)
             }
             TokenKind::IF => self.parse_if_expression(),
+            TokenKind::WHILE => self.parse_while_expression(),
             TokenKind::FUNCTION => self.parse_fn_expression(),
             TokenKind::LBRACKET => {
                 let (elements, span) = self.parse_expression_list(&TokenKind::RBRACKET)?;
@@ -253,10 +254,13 @@ impl<'a> Parser<'a> {
             | TokenKind::MINUS
             | TokenKind::ASTERISK
             | TokenKind::SLASH
+            | TokenKind::PERCENT
             | TokenKind::EQ
             | TokenKind::NotEq
             | TokenKind::LT
-            | TokenKind::GT => {
+            | TokenKind::GT
+            | TokenKind::LTE
+            | TokenKind::GTE => {
                 self.next_token();
                 let infix_op = self.current_token.clone();
                 let precedence_value = get_token_precedence(&self.current_token.kind);
@@ -333,6 +337,25 @@ impl<'a> Parser<'a> {
             body: block_statement,
             span: Span { start, end },
         })
+    }
+
+    fn parse_while_expression(&mut self) -> Result<Expression, ParseError> {
+        let start = self.current_token.span.start;
+        self.expect_peek(&TokenKind::LPAREN)?;
+        self.next_token();
+
+        let condition = self.parse_expression(Precedence::Lowest)?.0;
+        self.expect_peek(&TokenKind::RPAREN)?;
+        self.expect_peek(&TokenKind::LBRACE)?;
+
+        let body = self.parse_block_statement()?;
+        let end = self.current_token.span.end;
+
+        Ok(Expression::While(While {
+            condition: Box::new(condition),
+            body,
+            span: Span { start, end },
+        }))
     }
 
     fn parse_fn_expression(&mut self) -> Result<Expression, ParseError> {

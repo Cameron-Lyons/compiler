@@ -20,8 +20,8 @@ pub fn run_vm_tests(tests: Vec<VmTestCase>) {
             t.input
         );
         let mut vm = VM::new(bytecodes);
-        vm.run();
-        let got = vm.last_popped_stack_elm().unwrap();
+        vm.run().unwrap();
+        let got = vm.last_popped_stack_elm().unwrap().into_rc_object();
         let expected_argument = t.expected;
         test_constants(&[expected_argument], &[got]);
     }
@@ -408,6 +408,111 @@ mod tests {
             VmTestCase {
                 input: "{}[0]",
                 expected: Object::Null,
+            },
+        ];
+
+        run_vm_tests(tests);
+    }
+
+    #[test]
+    fn test_while_loops() {
+        let tests = vec![
+            VmTestCase {
+                input: "let x = 0; while (x < 5) { let x = x + 1; }; x",
+                expected: Object::Integer(5),
+            },
+            VmTestCase {
+                input:
+                    "let a = []; let i = 0; while (i < 3) { let a = push(a, i); let i = i + 1; }; a",
+                expected: Object::Array(vec![
+                    Rc::new(Object::Integer(0)),
+                    Rc::new(Object::Integer(1)),
+                    Rc::new(Object::Integer(2)),
+                ]),
+            },
+            VmTestCase {
+                input: "while (false) { 1 }",
+                expected: Object::Null,
+            },
+        ];
+
+        run_vm_tests(tests);
+    }
+
+    #[test]
+    fn test_lte_gte_modulo() {
+        let tests = vec![
+            VmTestCase {
+                input: "5 <= 5",
+                expected: Object::Boolean(true),
+            },
+            VmTestCase {
+                input: "5 <= 4",
+                expected: Object::Boolean(false),
+            },
+            VmTestCase {
+                input: "4 <= 5",
+                expected: Object::Boolean(true),
+            },
+            VmTestCase {
+                input: "5 >= 5",
+                expected: Object::Boolean(true),
+            },
+            VmTestCase {
+                input: "5 >= 6",
+                expected: Object::Boolean(false),
+            },
+            VmTestCase {
+                input: "6 >= 5",
+                expected: Object::Boolean(true),
+            },
+            VmTestCase {
+                input: "10 % 3",
+                expected: Object::Integer(1),
+            },
+            VmTestCase {
+                input: "10 % 5",
+                expected: Object::Integer(0),
+            },
+            VmTestCase {
+                input: "7 % 2",
+                expected: Object::Integer(1),
+            },
+        ];
+
+        run_vm_tests(tests);
+    }
+
+    #[test]
+    fn test_string_escape_sequences() {
+        let tests = vec![
+            VmTestCase {
+                input: r#""\thello\nworld""#,
+                expected: Object::String("\thello\nworld".to_string()),
+            },
+            VmTestCase {
+                input: r#""hello\\world""#,
+                expected: Object::String("hello\\world".to_string()),
+            },
+            VmTestCase {
+                input: r#""say \"hi\"""#,
+                expected: Object::String("say \"hi\"".to_string()),
+            },
+        ];
+
+        run_vm_tests(tests);
+    }
+
+    #[test]
+    fn test_tail_call_optimization() {
+        let tests = vec![
+            VmTestCase {
+                input: "let countdown = fn(n) { if (n == 0) { return 0; } countdown(n - 1) }; countdown(10)",
+                expected: Object::Integer(0),
+            },
+            VmTestCase {
+                input: "let sum = fn(n, acc) { if (n == 0) { return acc; } sum(n - 1, acc + n) }; sum(100, 0)",
+                expected: Object::Integer(5050),
             },
         ];
 
