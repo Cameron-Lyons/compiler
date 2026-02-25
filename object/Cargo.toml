@@ -1,7 +1,7 @@
 [package]
 name = "monkey-object"
 description = "a object system for monkey lang"
-edition = '2021'
+edition = '2024'
 
 [lib]
 name = "object"
@@ -12,4 +12,4 @@ lazy_static = "1.5.0"
 monkey-parser = { path = "../parser"}
 
 [dev-dependencies]
-insta = "1.42.0"
+insta = "1.46.3"

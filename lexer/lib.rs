@@ -1,4 +1,4 @@
-use crate::token::{lookup_identifier, Span, Token, TokenKind};
+use crate::token::{Span, Token, TokenKind, lookup_identifier};
 
 #[cfg(test)]
 mod lexer_test;

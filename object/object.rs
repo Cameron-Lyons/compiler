@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
@@ -17,13 +18,44 @@ pub mod environment;
 pub type EvalError = String;
 pub type BuiltinFunc = fn(Vec<Rc<Object>>) -> Rc<Object>;
 
+/// Immutable key type for hash maps. Only hashable variants to satisfy clippy::mutable_key_type.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum HashKey {
+    Integer(i64),
+    Boolean(bool),
+    String(String),
+}
+
+impl fmt::Display for HashKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            HashKey::Integer(i) => write!(f, "{}", i),
+            HashKey::Boolean(b) => write!(f, "{}", b),
+            HashKey::String(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl TryFrom<&Object> for HashKey {
+    type Error = ();
+
+    fn try_from(obj: &Object) -> Result<Self, Self::Error> {
+        match obj {
+            Object::Integer(i) => Ok(HashKey::Integer(*i)),
+            Object::Boolean(b) => Ok(HashKey::Boolean(*b)),
+            Object::String(s) => Ok(HashKey::String(s.clone())),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
     String(String),
     Array(Vec<Rc<Object>>),
-    Hash(HashMap<Rc<Object>, Rc<Object>>),
+    Hash(HashMap<HashKey, Rc<Object>>),
     Null,
     ReturnValue(Rc<Object>),
     Function(Vec<IDENTIFIER>, BlockStatement, Env),
@@ -34,7 +66,6 @@ pub enum Object {
 }
 
 impl PartialEq for Object {
-    #[allow(unpredictable_function_pointer_comparisons)]
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Object::Integer(a), Object::Integer(b)) => a == b,

@@ -9,12 +9,12 @@ pub extern crate lexer;
 
 use crate::ast::{
     Array, BinaryExpression, BlockStatement, Boolean, Expression, FunctionCall,
-    FunctionDeclaration, Hash, Index, Integer, Let, Literal, Node, Program, ReturnStatement,
-    Statement, StringType, UnaryExpression, While, IDENTIFIER, IF,
+    FunctionDeclaration, Hash, IDENTIFIER, IF, Index, Integer, Let, Literal, Node, Program,
+    ReturnStatement, Statement, StringType, UnaryExpression, While,
 };
-use crate::precedences::{get_token_precedence, Precedence};
-use lexer::token::{Span, Token, TokenKind};
+use crate::precedences::{Precedence, get_token_precedence};
 use lexer::Lexer;
+use lexer::token::{Span, Token, TokenKind};
 
 type ParseError = String;
 type ParseErrors = Vec<ParseError>;
@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let mut value = self.parse_expression(Precedence::Lowest)?.0;
-        if let (Some(ident_name), Expression::FUNCTION(ref mut f)) = (ident_name_str, &mut value) {
+        if let (Some(ident_name), Expression::FUNCTION(f)) = (ident_name_str, &mut value) {
             f.name = ident_name;
         }
 
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
                             start: left_start,
                             end: self.current_token.span.end,
                         },
-                    ))
+                    ));
                 }
             }
         }
@@ -396,7 +396,7 @@ impl<'a> Parser<'a> {
                 return Err(format!(
                     "expected function params  to be an identifier, got {}",
                     token
-                ))
+                ));
             }
         }
 
@@ -412,7 +412,7 @@ impl<'a> Parser<'a> {
                     return Err(format!(
                         "expected function params  to be an identifier, got {}",
                         token
-                    ))
+                    ));
                 }
             }
         }
@@ -423,17 +423,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_call_expression(&mut self, expr: Expression) -> Result<Expression, ParseError> {
-        // fake positive
-        #[allow(unused_assignments)]
-        let mut start = self.current_token.span.start;
         let (arguments, ..) = self.parse_expression_list(&TokenKind::RPAREN)?;
         let end = self.current_token.span.end;
-        match &expr {
-            Expression::IDENTIFIER(i) => start = i.span.start,
-            Expression::FUNCTION(f) => start = f.span.start,
+        let (start, callee) = match &expr {
+            Expression::IDENTIFIER(i) => (i.span.start, Box::new(expr)),
+            Expression::FUNCTION(f) => (f.span.start, Box::new(expr)),
             _ => return Err("expected function".to_string()),
-        }
-        let callee = Box::new(expr);
+        };
 
         Ok(Expression::FunctionCall(FunctionCall {
             callee,

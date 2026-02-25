@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::token::{Token, TokenKind};
     use crate::Lexer;
+    use crate::token::{Token, TokenKind};
     use insta::*;
 
     fn test_token_set(l: &mut Lexer) -> Vec<Token> {

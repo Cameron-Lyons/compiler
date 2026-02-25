@@ -6,7 +6,7 @@ use parser::ast::{BlockStatement, Expression, Integer, Literal, Node, Statement}
 use parser::lexer::token::TokenKind;
 
 use crate::op_code::Opcode::*;
-use crate::op_code::{cast_u8_to_opcode, make_instructions, Instructions, Opcode};
+use crate::op_code::{Instructions, Opcode, cast_u8_to_opcode, make_instructions};
 use crate::symbol_table::{Symbol, SymbolScope, SymbolTable};
 
 struct CompilationScope {
@@ -442,10 +442,10 @@ impl Compiler {
         if name.is_empty() {
             return false;
         }
-        if let Some(Statement::Expr(Expression::FunctionCall(fc))) = body.body.last() {
-            if let Expression::IDENTIFIER(id) = &*fc.callee {
-                return id.name == name;
-            }
+        if let Some(Statement::Expr(Expression::FunctionCall(fc))) = body.body.last()
+            && let Expression::IDENTIFIER(id) = &*fc.callee
+        {
+            return id.name == name;
         }
         false
     }
@@ -454,23 +454,23 @@ impl Compiler {
         &mut self,
         prefix: &parser::ast::UnaryExpression,
     ) -> Option<Result<(), CompileError>> {
-        if prefix.op.kind == TokenKind::MINUS {
-            if let Expression::LITERAL(Literal::Integer(Integer { raw, .. })) = &*prefix.operand {
-                let result = Object::Integer(-*raw);
-                let idx = self.add_constant(result);
-                self.emit(OpConst, &[idx]);
-                return Some(Ok(()));
-            }
+        if prefix.op.kind == TokenKind::MINUS
+            && let Expression::LITERAL(Literal::Integer(Integer { raw, .. })) = &*prefix.operand
+        {
+            let result = Object::Integer(-*raw);
+            let idx = self.add_constant(result);
+            self.emit(OpConst, &[idx]);
+            return Some(Ok(()));
         }
-        if prefix.op.kind == TokenKind::BANG {
-            if let Expression::LITERAL(Literal::Boolean(b)) = &*prefix.operand {
-                if b.raw {
-                    self.emit(OpFalse, &[]);
-                } else {
-                    self.emit(OpTrue, &[]);
-                }
-                return Some(Ok(()));
+        if prefix.op.kind == TokenKind::BANG
+            && let Expression::LITERAL(Literal::Boolean(b)) = &*prefix.operand
+        {
+            if b.raw {
+                self.emit(OpFalse, &[]);
+            } else {
+                self.emit(OpTrue, &[]);
             }
+            return Some(Ok(()));
         }
         None
     }

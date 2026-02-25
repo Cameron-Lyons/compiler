@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::compiler_test::{run_compiler_test, CompilerTestCase};
+    use crate::compiler_test::{CompilerTestCase, run_compiler_test};
     use crate::op_code::Opcode::*;
     use crate::op_code::{concat_instructions, make_instructions};
     use object::Object;

@@ -1,5 +1,5 @@
 use crate::compiler::Compiler;
-use crate::op_code::{concat_instructions, Instructions};
+use crate::op_code::{Instructions, concat_instructions};
 use parser::parse;
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -48,8 +48,8 @@ fn test_instructions(expected: &[Instructions], actual: &Instructions) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::op_code::make_instructions;
     use crate::op_code::Opcode::*;
+    use crate::op_code::make_instructions;
 
     #[test]
     fn integer_arithmetic() {

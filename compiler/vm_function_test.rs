@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::vm_test::{run_vm_tests, VmTestCase};
+    use crate::vm_test::{VmTestCase, run_vm_tests};
     use object::Object;
     use std::rc::Rc;
 

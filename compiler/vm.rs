@@ -5,11 +5,11 @@ use std::rc::Rc;
 use byteorder::{BigEndian, ByteOrder};
 use object::builtins::BuiltIns;
 
-use object::{Closure, Object};
+use object::{Closure, HashKey, Object};
 
 use crate::compiler::Bytecode;
 use crate::frame::Frame;
-use crate::op_code::{cast_u8_to_opcode, Opcode};
+use crate::op_code::{Opcode, cast_u8_to_opcode};
 
 const STACK_SIZE: usize = 2048;
 pub const GLOBAL_SIZE: usize = 65536;
@@ -241,7 +241,6 @@ impl VM {
                     self.sp -= count;
                     self.push(Value::Object(Rc::new(Object::Array(elements))))?;
                 }
-                #[allow(clippy::mutable_key_type)]
                 Opcode::OpHash => {
                     let count = BigEndian::read_u16(&ins[ip + 1..ip + 3]) as usize;
                     self.current_frame().ip += 2;
@@ -337,17 +336,17 @@ impl VM {
                         return Err(VMError::TypeError(format!(
                             "unknown integer operator: {:?}",
                             opcode
-                        )))
+                        )));
                     }
                 };
                 self.push(Value::Integer(result))
             }
             (Value::Object(l), Value::Object(r)) => {
-                if let (Object::String(ls), Object::String(rs)) = (&**l, &**r) {
-                    if opcode == Opcode::OpAdd {
-                        let result = ls.to_string() + rs;
-                        return self.push(Value::Object(Rc::new(Object::String(result))));
-                    }
+                if let (Object::String(ls), Object::String(rs)) = (&**l, &**r)
+                    && opcode == Opcode::OpAdd
+                {
+                    let result = ls.to_string() + rs;
+                    return self.push(Value::Object(Rc::new(Object::String(result))));
                 }
                 Err(VMError::TypeError(format!(
                     "unsupported binary operation {:?} for {} and {}",
@@ -378,7 +377,7 @@ impl VM {
                         return Err(VMError::TypeError(format!(
                             "unknown comparison operator: {:?}",
                             opcode
-                        )))
+                        )));
                     }
                 };
                 self.push(Value::Boolean(result))
@@ -391,7 +390,7 @@ impl VM {
                         return Err(VMError::TypeError(format!(
                             "unknown boolean comparison operator: {:?}",
                             opcode
-                        )))
+                        )));
                     }
                 };
                 self.push(Value::Boolean(result))
@@ -450,13 +449,14 @@ impl VM {
         elements
     }
 
-    #[allow(clippy::mutable_key_type)]
-    fn build_hash(&self, start: usize, end: usize) -> HashMap<Rc<Object>, Rc<Object>> {
+    fn build_hash(&self, start: usize, end: usize) -> HashMap<HashKey, Rc<Object>> {
         let mut elements = HashMap::new();
         for i in (start..end).step_by(2) {
             let key = self.stack[i].into_rc_object();
+            let hash_key = HashKey::try_from(key.as_ref())
+                .expect("compiler must only emit hashable keys in hash literals");
             let value = self.stack[i + 1].into_rc_object();
-            elements.insert(key, value);
+            elements.insert(hash_key, value);
         }
         elements
     }
@@ -493,19 +493,18 @@ impl VM {
         }
     }
 
-    #[allow(clippy::mutable_key_type)]
     fn execute_hash_index(
         &mut self,
-        hash: &HashMap<Rc<Object>, Rc<Object>>,
+        hash: &HashMap<HashKey, Rc<Object>>,
         index: Rc<Object>,
     ) -> Result<(), VMError> {
-        match &*index {
-            Object::Integer(_) | Object::Boolean(_) | Object::String(_) => match hash.get(&index) {
+        match HashKey::try_from(index.as_ref()) {
+            Ok(hash_key) => match hash.get(&hash_key) {
                 Some(el) => self.push(Value::from_object(Rc::clone(el))),
                 None => self.push(Value::Null),
             },
-            _ => Err(VMError::IndexError(format!(
-                "unusable as hash key: {}",
+            Err(()) => Err(VMError::IndexError(format!(
+                "index operator not supported for {}",
                 index
             ))),
         }

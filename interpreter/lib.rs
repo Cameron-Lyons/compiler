@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use object::builtins::*;
 use object::environment::*;
-use object::{EvalError, Object};
+use object::{EvalError, HashKey, Object};
 use parser::ast::*;
 use parser::lexer::token::{Token, TokenKind};
 
@@ -138,11 +138,9 @@ fn eval_index_expression(left: &Rc<Object>, index: &Rc<Object>) -> Result<Rc<Obj
             None => Ok(Rc::new(Object::Null)),
         },
         (Object::Hash(map), key) => {
-            if !(key.is_hashable()) {
-                return Err("not a valid hash key".to_string());
-            }
-
-            match map.get(key) {
+            let hash_key =
+                HashKey::try_from(key).map_err(|()| "not a valid hash key".to_string())?;
+            match map.get(&hash_key) {
                 Some(obj) => Ok(Rc::clone(obj)),
                 None => Ok(Rc::new(Object::Null)),
             }
@@ -282,7 +280,6 @@ fn eval_literal(literal: &Literal, env: &Env) -> Result<Rc<Object>, EvalError> {
             let list = eval_expressions(elements, env)?;
             Ok(Rc::from(Object::Array(list)))
         }
-        #[allow(clippy::mutable_key_type)]
         Literal::Hash(Hash { elements: map, .. }) => {
             let mut hash_map = HashMap::new();
 
@@ -291,8 +288,9 @@ fn eval_literal(literal: &Literal, env: &Env) -> Result<Rc<Object>, EvalError> {
                 if !key.is_hashable() {
                     return Err(format!("key {} is not hashable", key));
                 }
+                let hash_key = HashKey::try_from(key.as_ref()).unwrap();
                 let value = eval_expression(v, env)?;
-                hash_map.insert(key, value);
+                hash_map.insert(hash_key, value);
             }
 
             Ok(Rc::new(Object::Hash(hash_map)))

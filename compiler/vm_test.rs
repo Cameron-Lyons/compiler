@@ -29,11 +29,11 @@ pub fn run_vm_tests(tests: Vec<VmTestCase>) {
 
 #[cfg(test)]
 mod tests {
-    use object::Object;
+    use object::{HashKey, Object};
     use std::collections::HashMap;
     use std::rc::Rc;
 
-    use crate::vm_test::{run_vm_tests, VmTestCase};
+    use crate::vm_test::{VmTestCase, run_vm_tests};
 
     #[test]
     fn test_integer_arithmetic() {
@@ -335,11 +335,10 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::mutable_key_type)]
     fn test_hash() {
         fn map_vec_to_object(vec: Vec<(i64, i64)>) -> Object {
             let hash = vec.iter().fold(HashMap::new(), |mut acc, (k, v)| {
-                acc.insert(Rc::new(Object::Integer(*k)), Rc::new(Object::Integer(*v)));
+                acc.insert(HashKey::Integer(*k), Rc::new(Object::Integer(*v)));
                 acc
             });
             Object::Hash(hash)
@@ -422,8 +421,7 @@ mod tests {
                 expected: Object::Integer(5),
             },
             VmTestCase {
-                input:
-                    "let a = []; let i = 0; while (i < 3) { let a = push(a, i); let i = i + 1; }; a",
+                input: "let a = []; let i = 0; while (i < 3) { let a = push(a, i); let i = i + 1; }; a",
                 expected: Object::Array(vec![
                     Rc::new(Object::Integer(0)),
                     Rc::new(Object::Integer(1)),

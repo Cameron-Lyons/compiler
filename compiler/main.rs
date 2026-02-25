@@ -1,5 +1,5 @@
 use compiler::compiler::Compiler;
-use compiler::vm::{Value, VM};
+use compiler::vm::{VM, Value};
 
 use compiler::symbol_table::SymbolTable;
 use std::io::stdin;

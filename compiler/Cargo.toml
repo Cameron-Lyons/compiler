@@ -1,7 +1,7 @@
 [package]
 name = "monkey-compiler"
 description = "a compiler for monkey lang"
-edition = '2021'
+edition = '2024'
 
 [lib]
 name = "compiler"
@@ -14,7 +14,7 @@ path = "main.rs"
 [dependencies]
 lazy_static = "1.5.0"
 byteorder = "1.5.0"
-strum = { version = "0.26.3", features = ["derive"]}
-strum_macros = "0.26.4"
+strum = { version = "0.28.0", features = ["derive"]}
+strum_macros = "0.28.0"
 monkey-parser = { path = "../parser"}
 monkey-object = { path = "../object"}
