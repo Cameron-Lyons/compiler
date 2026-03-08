@@ -138,20 +138,26 @@ fn eval_index_expression(left: &Rc<Object>, index: &Rc<Object>) -> Result<Rc<Obj
             None => Ok(Rc::new(Object::Null)),
         },
         (Object::Hash(map), key) => {
-            let hash_key =
-                HashKey::try_from(key).map_err(|()| "not a valid hash key".to_string())?;
+            let hash_key = HashKey::try_from(key).map_err(|()| EvalError::InvalidHashKey)?;
             match map.get(&hash_key) {
                 Some(obj) => Ok(Rc::clone(obj)),
                 None => Ok(Rc::new(Object::Null)),
             }
         }
-        _ => Err(format!("index operator not supported for {}", left)),
+        _ => Err(EvalError::UnsupportedIndexOperator(left.to_string())),
     }
 }
 
 fn apply_function(function: &Rc<Object>, args: &[Rc<Object>]) -> Result<Rc<Object>, EvalError> {
     match &**function {
         Object::Function(params, body, env) => {
+            if params.len() != args.len() {
+                return Err(EvalError::WrongArity {
+                    expected: params.len(),
+                    got: args.len(),
+                });
+            }
+
             let mut env = Environment::new_enclosed_environment(env);
 
             params.iter().enumerate().for_each(|(i, param)| {
@@ -162,7 +168,7 @@ fn apply_function(function: &Rc<Object>, args: &[Rc<Object>]) -> Result<Rc<Objec
             unwrap_return(evaluated)
         }
         Object::Builtin(b) => Ok(b(args.to_vec())),
-        f => Err(format!("expected {} to be a function", f)),
+        f => Err(EvalError::NotFunction(f.to_string())),
     }
 }
 
@@ -189,7 +195,7 @@ fn eval_identifier(identifier: &str, env: &Env) -> Result<Rc<Object>, EvalError>
         Some(obj) => Ok(obj.clone()),
         None => match BuiltIns.iter().find(|&&b| b.0 == identifier) {
             Some(obj) => Ok(Rc::new(Object::Builtin(obj.1))),
-            None => Err(format!("unknown identifier {}", identifier)),
+            None => Err(EvalError::UnknownIdentifier(identifier.to_string())),
         },
     }
 }
@@ -198,7 +204,7 @@ fn eval_prefix(op: &Token, right: &Object) -> Result<Rc<Object>, EvalError> {
     match op.kind {
         TokenKind::BANG => eval_prefix_bang(right),
         TokenKind::MINUS => eval_prefix_minus(right),
-        _ => Err(format!("unknown prefix operator: {}", op)),
+        _ => Err(EvalError::UnknownPrefixOperator(op.kind.clone())),
     }
 }
 
@@ -213,7 +219,7 @@ fn eval_prefix_bang(expr: &Object) -> Result<Rc<Object>, EvalError> {
 fn eval_prefix_minus(expr: &Object) -> Result<Rc<Object>, EvalError> {
     match *expr {
         Object::Integer(i) => Ok(Rc::from(Object::Integer(-i))),
-        _ => Err(format!("can't apply prefix minus operator: {}", expr)),
+        _ => Err(EvalError::CannotApplyPrefixMinus(expr.to_string())),
     }
 }
 
@@ -224,10 +230,11 @@ fn eval_infix(op: &Token, left: &Object, right: &Object) -> Result<Rc<Object>, E
         (Object::String(left), Object::String(right)) => {
             eval_string_infix(op, left.to_string(), right.to_string())
         }
-        _ => Err(format!(
-            "eval infix error for op: {}, left: {}, right: {}",
-            op, left, right
-        )),
+        _ => Err(EvalError::InfixTypeMismatch {
+            op: op.kind.clone(),
+            left: left.to_string(),
+            right: right.to_string(),
+        }),
     }
 }
 
@@ -244,7 +251,7 @@ fn eval_integer_infix(op: &Token, left: i64, right: i64) -> Result<Rc<Object>, E
         TokenKind::GTE => Object::Boolean(left >= right),
         TokenKind::EQ => Object::Boolean(left == right),
         TokenKind::NotEq => Object::Boolean(left != right),
-        op => return Err(format!("Invalid infix operator {} for int", op)),
+        op => return Err(EvalError::InvalidIntegerOperator(op.clone())),
     };
 
     Ok(Rc::from(result))
@@ -254,7 +261,7 @@ fn eval_boolean_infix(op: &Token, left: bool, right: bool) -> Result<Rc<Object>,
     let result = match &op.kind {
         TokenKind::EQ => Object::Boolean(left == right),
         TokenKind::NotEq => Object::Boolean(left != right),
-        op => return Err(format!("Invalid infix operator for boolean: {}", op)),
+        op => return Err(EvalError::InvalidBooleanOperator(op.clone())),
     };
 
     Ok(Rc::from(result))
@@ -265,7 +272,7 @@ fn eval_string_infix(op: &Token, left: String, right: String) -> Result<Rc<Objec
         TokenKind::EQ => Object::Boolean(left == right),
         TokenKind::NotEq => Object::Boolean(left != right),
         TokenKind::PLUS => Object::String(format!("{}{}", left, right)),
-        op => return Err(format!("Invalid infix {} operator for string", op)),
+        op => return Err(EvalError::InvalidStringOperator(op.clone())),
     };
 
     Ok(Rc::from(result))
@@ -285,10 +292,8 @@ fn eval_literal(literal: &Literal, env: &Env) -> Result<Rc<Object>, EvalError> {
 
             for (k, v) in map {
                 let key = eval_expression(k, env)?;
-                if !key.is_hashable() {
-                    return Err(format!("key {} is not hashable", key));
-                }
-                let hash_key = HashKey::try_from(key.as_ref()).unwrap();
+                let hash_key = HashKey::try_from(key.as_ref())
+                    .map_err(|()| EvalError::KeyNotHashable(key.to_string()))?;
                 let value = eval_expression(v, env)?;
                 hash_map.insert(hash_key, value);
             }

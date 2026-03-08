@@ -38,7 +38,7 @@ expression: 10 % 3
     },
     "span": {
       "start": 6,
-      "end": 7
+      "end": 6
     }
   }
 ]

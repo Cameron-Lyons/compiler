@@ -83,7 +83,7 @@ impl fmt::Display for Statement {
                 if let TokenKind::IDENTIFIER { name } = &id.kind {
                     return write!(f, "let {} = {};", name, expr);
                 }
-                panic!("unreachable")
+                write!(f, "let {} = {};", id.kind, expr)
             }
             Statement::Return(ReturnStatement { argument, .. }) => {
                 write!(f, "return {};", argument)

@@ -15,9 +15,42 @@ use crate::ast::{
 use crate::precedences::{Precedence, get_token_precedence};
 use lexer::Lexer;
 use lexer::token::{Span, Token, TokenKind};
+use std::fmt;
 
-type ParseError = String;
-type ParseErrors = Vec<ParseError>;
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ParseError {
+    ExpectedToken { expected: String, got: Token },
+    ExpectedIdentifier { got: Token },
+    InvalidFunctionParameter { got: Token },
+    NoPrefixParseFn { token: Token },
+    SerializeAst(String),
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::ExpectedToken { expected, got } => {
+                write!(f, "expected token {}, got {}", expected, got)
+            }
+            ParseError::ExpectedIdentifier { got } => {
+                write!(f, "expected identifier, got {}", got)
+            }
+            ParseError::InvalidFunctionParameter { got } => {
+                write!(
+                    f,
+                    "expected function parameter to be an identifier, got {}",
+                    got
+                )
+            }
+            ParseError::NoPrefixParseFn { token } => {
+                write!(f, "no prefix function for token {}", token)
+            }
+            ParseError::SerializeAst(err) => write!(f, "failed to serialize AST: {}", err),
+        }
+    }
+}
+
+pub type ParseErrors = Vec<ParseError>;
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -45,21 +78,23 @@ impl<'a> Parser<'a> {
         self.peek_token = self.lexer.next_token();
     }
 
-    fn current_token_is(&mut self, token: &TokenKind) -> bool {
+    fn current_token_is(&self, token: &TokenKind) -> bool {
         self.current_token.kind == *token
     }
 
-    fn peek_token_is(&mut self, token: &TokenKind) -> bool {
+    fn peek_token_is(&self, token: &TokenKind) -> bool {
         self.peek_token.kind == *token
     }
 
     fn expect_peek(&mut self, token: &TokenKind) -> Result<(), ParseError> {
-        self.next_token();
-        if self.current_token.kind == *token {
+        if self.peek_token.kind == *token {
+            self.next_token();
             Ok(())
         } else {
-            let e = format!("expected token: {} got: {}", token, self.current_token);
-            Err(e)
+            Err(ParseError::ExpectedToken {
+                expected: token.to_string(),
+                got: self.peek_token.clone(),
+            })
         }
     }
 
@@ -96,7 +131,11 @@ impl<'a> Parser<'a> {
         let name = self.current_token.clone();
         let ident_name_str = match &self.current_token.kind {
             TokenKind::IDENTIFIER { name } => Some(name.clone()),
-            _ => return Err(format!("{} not an identifier", self.current_token)),
+            _ => {
+                return Err(ParseError::ExpectedIdentifier {
+                    got: self.current_token.clone(),
+                });
+            }
         };
 
         self.expect_peek(&TokenKind::ASSIGN)?;
@@ -150,17 +189,15 @@ impl<'a> Parser<'a> {
         &mut self,
         precedence: Precedence,
     ) -> Result<(Expression, Span), ParseError> {
-        let mut left_start = self.current_token.span.start;
         let mut left = self.parse_prefix_expression()?;
+        let mut left_start = expression_start(&left);
         while self.peek_token.kind != TokenKind::SEMICOLON
             && precedence < get_token_precedence(&self.peek_token.kind)
         {
             match self.parse_infix_expression(&left, left_start) {
                 Some(infix) => {
                     left = infix?;
-                    if let Expression::INFIX(b) = left.clone() {
-                        left_start = b.span.start;
-                    }
+                    left_start = expression_start(&left);
                 }
                 None => {
                     return Ok((
@@ -237,10 +274,9 @@ impl<'a> Parser<'a> {
                 })))
             }
             TokenKind::LBRACE => self.parse_hash_expression(),
-            _ => Err(format!(
-                "no prefix function for token: {}",
-                self.current_token
-            )),
+            _ => Err(ParseError::NoPrefixParseFn {
+                token: self.current_token.clone(),
+            }),
         }
     }
 
@@ -265,7 +301,10 @@ impl<'a> Parser<'a> {
                 let infix_op = self.current_token.clone();
                 let precedence_value = get_token_precedence(&self.current_token.kind);
                 self.next_token();
-                let (right, span) = self.parse_expression(precedence_value).unwrap();
+                let (right, span) = match self.parse_expression(precedence_value) {
+                    Ok(parsed) => parsed,
+                    Err(err) => return Some(Err(err)),
+                };
                 Some(Ok(Expression::INFIX(BinaryExpression {
                     op: infix_op,
                     left: Box::new(left.clone()),
@@ -324,8 +363,9 @@ impl<'a> Parser<'a> {
 
         while !self.current_token_is(&TokenKind::RBRACE) && !self.current_token_is(&TokenKind::EOF)
         {
-            if let Ok(statement) = self.parse_statement() {
-                block_statement.push(statement)
+            match self.parse_statement() {
+                Ok(statement) => block_statement.push(statement),
+                Err(err) => self.errors.push(err),
             }
 
             self.next_token();
@@ -392,11 +432,10 @@ impl<'a> Parser<'a> {
                 name: name.clone(),
                 span: self.current_token.span.clone(),
             }),
-            token => {
-                return Err(format!(
-                    "expected function params  to be an identifier, got {}",
-                    token
-                ));
+            _ => {
+                return Err(ParseError::InvalidFunctionParameter {
+                    got: self.current_token.clone(),
+                });
             }
         }
 
@@ -408,11 +447,10 @@ impl<'a> Parser<'a> {
                     name: name.clone(),
                     span: self.current_token.span.clone(),
                 }),
-                token => {
-                    return Err(format!(
-                        "expected function params  to be an identifier, got {}",
-                        token
-                    ));
+                _ => {
+                    return Err(ParseError::InvalidFunctionParameter {
+                        got: self.current_token.clone(),
+                    });
                 }
             }
         }
@@ -423,13 +461,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_call_expression(&mut self, expr: Expression) -> Result<Expression, ParseError> {
+        let start = expression_start(&expr);
         let (arguments, ..) = self.parse_expression_list(&TokenKind::RPAREN)?;
         let end = self.current_token.span.end;
-        let (start, callee) = match &expr {
-            Expression::IDENTIFIER(i) => (i.span.start, Box::new(expr)),
-            Expression::FUNCTION(f) => (f.span.start, Box::new(expr)),
-            _ => return Err("expected function".to_string()),
-        };
+        let callee = Box::new(expr);
 
         Ok(Expression::FunctionCall(FunctionCall {
             callee,
@@ -521,10 +556,31 @@ pub fn parse(input: &str) -> Result<Node, ParseErrors> {
 }
 
 pub fn parse_ast_json_string(input: &str) -> Result<String, ParseErrors> {
-    let ast = match parse(input) {
-        Ok(node) => serde_json::to_string_pretty(&node).unwrap(),
-        Err(e) => return Err(e),
-    };
+    let node = parse(input)?;
+    serde_json::to_string_pretty(&node)
+        .map_err(|err| vec![ParseError::SerializeAst(err.to_string())])
+}
 
-    Ok(ast)
+fn expression_start(expr: &Expression) -> usize {
+    match expr {
+        Expression::IDENTIFIER(identifier) => identifier.span.start,
+        Expression::LITERAL(literal) => literal_start(literal),
+        Expression::PREFIX(prefix) => prefix.span.start,
+        Expression::INFIX(infix) => infix.span.start,
+        Expression::IF(if_expr) => if_expr.span.start,
+        Expression::While(while_expr) => while_expr.span.start,
+        Expression::FUNCTION(function) => function.span.start,
+        Expression::FunctionCall(call) => call.span.start,
+        Expression::Index(index) => index.span.start,
+    }
+}
+
+fn literal_start(literal: &Literal) -> usize {
+    match literal {
+        Literal::Integer(integer) => integer.span.start,
+        Literal::Boolean(boolean) => boolean.span.start,
+        Literal::String(string) => string.span.start,
+        Literal::Array(array) => array.span.start,
+        Literal::Hash(hash) => hash.span.start,
+    }
 }

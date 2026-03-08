@@ -39,8 +39,8 @@ fn test_instructions(expected: &[Instructions], actual: &Instructions) {
             exp,
             got,
             "instruction not equal\n actual  : \n{}\n expected: \n{}",
-            actual.string(),
-            expected_ins.string()
+            actual.string().unwrap(),
+            expected_ins.string().unwrap()
         );
     }
 }

@@ -1,4 +1,3 @@
-use crate::op_code::Instructions;
 use object::Closure;
 
 #[derive(Debug, Clone)]
@@ -11,15 +10,13 @@ pub struct Frame {
 impl Frame {
     pub fn new(closure: Closure, base_pointer: usize) -> Self {
         Frame {
-            closure, // Field and parameter name alignment
-            ip: -1,  // Starts before first instruction
+            closure,
+            ip: -1,
             base_pointer,
         }
     }
 
-    pub fn instructions(&self) -> Instructions {
-        Instructions {
-            bytes: self.closure.func.instructions.clone(),
-        }
+    pub fn instructions(&self) -> &[u8] {
+        &self.closure.func.instructions
     }
 }
