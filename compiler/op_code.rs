@@ -2,7 +2,49 @@ use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::io::{Cursor, Read};
 use std::sync::OnceLock;
-use strum::{EnumCount, EnumIter};
+use strum::{EnumCount, EnumIter, IntoEnumIterator};
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum OpCodeError {
+    UndefinedOpcode(Opcode),
+    MissingDefinition(Opcode),
+    InvalidOpcodeByte { byte: u8, position: Option<usize> },
+    OperandCountMismatch { expected: usize, got: usize },
+    OperandOutOfRange { operand: usize, width: usize },
+    UnsupportedOperandWidth(usize),
+    OperandRead(String),
+}
+
+impl Display for OpCodeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            OpCodeError::UndefinedOpcode(op) => write!(f, "undefined opcode: {:?}", op),
+            OpCodeError::MissingDefinition(op) => write!(f, "missing definition for {:?}", op),
+            OpCodeError::InvalidOpcodeByte { byte, position } => match position {
+                Some(position) => write!(
+                    f,
+                    "invalid opcode byte: 0x{:02x} at position {}",
+                    byte, position
+                ),
+                None => write!(f, "invalid opcode byte: 0x{:02x}", byte),
+            },
+            OpCodeError::OperandCountMismatch { expected, got } => {
+                write!(
+                    f,
+                    "operand count mismatch: expected {}, got {}",
+                    expected, got
+                )
+            }
+            OpCodeError::OperandOutOfRange { operand, width } => {
+                write!(f, "operand {} does not fit in {} byte(s)", operand, width)
+            }
+            OpCodeError::UnsupportedOperandWidth(width) => {
+                write!(f, "unsupported operand width: {}", width)
+            }
+            OpCodeError::OperandRead(err) => write!(f, "failed to read operands: {}", err),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Instructions {
@@ -108,17 +150,16 @@ fn insert_def(
     );
 }
 
-pub fn make(op: Opcode, operands: &[usize]) -> Result<Instructions, String> {
+pub fn make(op: Opcode, operands: &[usize]) -> Result<Instructions, OpCodeError> {
     let def = definitions()
         .get(&op)
-        .ok_or_else(|| format!("Undefined opcode: {:?}", op))?;
+        .ok_or(OpCodeError::UndefinedOpcode(op))?;
 
     if def.operand_widths.len() != operands.len() {
-        return Err(format!(
-            "Operand count mismatch: expected {}, got {}",
-            def.operand_widths.len(),
-            operands.len()
-        ));
+        return Err(OpCodeError::OperandCountMismatch {
+            expected: def.operand_widths.len(),
+            got: operands.len(),
+        });
     }
 
     let mut bytes = Vec::with_capacity(1 + def.operand_widths.iter().sum::<usize>());
@@ -126,9 +167,17 @@ pub fn make(op: Opcode, operands: &[usize]) -> Result<Instructions, String> {
 
     for (&operand, &width) in operands.iter().zip(def.operand_widths) {
         match width {
-            2 => bytes.extend_from_slice(&(operand as u16).to_be_bytes()),
-            1 => bytes.push(operand as u8),
-            w => return Err(format!("Unsupported operand width: {}", w)),
+            2 => {
+                let operand = u16::try_from(operand)
+                    .map_err(|_| OpCodeError::OperandOutOfRange { operand, width })?;
+                bytes.extend_from_slice(&operand.to_be_bytes());
+            }
+            1 => {
+                let operand = u8::try_from(operand)
+                    .map_err(|_| OpCodeError::OperandOutOfRange { operand, width })?;
+                bytes.push(operand);
+            }
+            w => return Err(OpCodeError::UnsupportedOperandWidth(w)),
         }
     }
 
@@ -138,7 +187,7 @@ pub fn make(op: Opcode, operands: &[usize]) -> Result<Instructions, String> {
 pub fn read_operands(
     def: &OpcodeDefinition,
     mut bytes: &[u8],
-) -> Result<(Vec<usize>, usize), String> {
+) -> Result<(Vec<usize>, usize), OpCodeError> {
     let mut operands = Vec::with_capacity(def.operand_widths.len());
     let mut bytes_read = 0;
 
@@ -146,18 +195,22 @@ pub fn read_operands(
         match width {
             2 => {
                 let mut buf = [0u8; 2];
-                bytes.read_exact(&mut buf).map_err(|e| e.to_string())?;
+                bytes
+                    .read_exact(&mut buf)
+                    .map_err(|e| OpCodeError::OperandRead(e.to_string()))?;
                 operands.push(u16::from_be_bytes(buf) as usize);
                 bytes_read += 2;
             }
             1 => {
                 let mut buf = [0u8; 1];
-                bytes.read_exact(&mut buf).map_err(|e| e.to_string())?;
+                bytes
+                    .read_exact(&mut buf)
+                    .map_err(|e| OpCodeError::OperandRead(e.to_string()))?;
                 operands.push(buf[0] as usize);
                 bytes_read += 1;
             }
             0 => operands.push(0), // For 0-width operands
-            w => return Err(format!("Unsupported operand width: {}", w)),
+            w => return Err(OpCodeError::UnsupportedOperandWidth(w)),
         }
     }
 
@@ -171,32 +224,29 @@ impl Instructions {
         }
     }
 
-    pub fn disassemble(&self) -> String {
+    pub fn disassemble(&self) -> Result<String, OpCodeError> {
         let mut output = String::new();
         let mut cursor = Cursor::new(&self.bytes);
 
         while let Ok(op) = cursor.read_u8() {
             let pos = cursor.position() as usize - 1;
-            let opcode = Opcode::try_from(op).unwrap_or_else(|_| {
-                panic!("Invalid opcode byte: 0x{:02x} at position {}", op, pos)
-            });
+            let opcode = cast_u8_to_opcode_at(op, pos)?;
 
             let def = definitions()
                 .get(&opcode)
-                .unwrap_or_else(|| panic!("Missing definition for {:?}", opcode));
+                .ok_or(OpCodeError::MissingDefinition(opcode))?;
 
-            let (operands, read) = read_operands(def, &self.bytes[pos + 1..])
-                .unwrap_or_else(|e| panic!("Error reading operands at {}: {}", pos, e));
+            let (operands, read) = read_operands(def, &self.bytes[pos + 1..])?;
 
             output.push_str(&format!("{:04} {}\n", pos, def.display(&operands)));
 
             cursor.set_position((pos + 1 + read) as u64);
         }
 
-        output
+        Ok(output)
     }
 
-    pub fn string(&self) -> String {
+    pub fn string(&self) -> Result<String, OpCodeError> {
         self.disassemble()
     }
 
@@ -251,27 +301,35 @@ trait ReadExt: Read {
 impl<R: Read> ReadExt for R {}
 
 impl TryFrom<u8> for Opcode {
-    type Error = ();
+    type Error = OpCodeError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value < Opcode::COUNT as u8 {
-            // SAFETY: We've checked the bounds above
-            Ok(unsafe { std::mem::transmute::<u8, Opcode>(value) })
-        } else {
-            Err(())
-        }
+        Opcode::iter()
+            .nth(value as usize)
+            .ok_or(OpCodeError::InvalidOpcodeByte {
+                byte: value,
+                position: None,
+            })
     }
 }
 
-// Add missing functions that are imported by other modules
-pub fn cast_u8_to_opcode(byte: u8) -> Opcode {
-    Opcode::try_from(byte).unwrap_or_else(|_| panic!("Invalid opcode byte: 0x{:02x}", byte))
+pub fn cast_u8_to_opcode(byte: u8) -> Result<Opcode, OpCodeError> {
+    Opcode::try_from(byte)
 }
 
 pub fn make_instructions(op: Opcode, operands: &[usize]) -> Instructions {
-    make(op, operands).unwrap()
+    make(op, operands).expect("opcode definition and operands should be valid")
 }
 
 pub fn concat_instructions(instructions: Vec<Instructions>) -> Instructions {
     Instructions::merge(instructions)
+}
+
+fn cast_u8_to_opcode_at(byte: u8, position: usize) -> Result<Opcode, OpCodeError> {
+    Opcode::iter()
+        .nth(byte as usize)
+        .ok_or(OpCodeError::InvalidOpcodeByte {
+            byte,
+            position: Some(position),
+        })
 }

@@ -19,7 +19,7 @@ expression: "\"\\thello\\nworld\""
     },
     "span": {
       "start": 16,
-      "end": 17
+      "end": 16
     }
   }
 ]

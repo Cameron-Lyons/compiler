@@ -16,10 +16,10 @@ Monkey is a simple but powerful programming language designed for learning compi
 
 ### Language Features
 - **Primitive Types**: Integers, Booleans, Strings, Arrays, and Hash Maps
-- **Control Flow**: If/else statements, loops (via recursion)
+- **Control Flow**: If/else expressions and `while` loops
 - **Functions**: First-class functions with closures and lexical scoping
-- **Built-in Functions**: `len()`, `first()`, `last()`, `rest()`, `push()`, `puts()`
-- **Operators**: Arithmetic (`+`, `-`, `*`, `/`), comparison (`==`, `!=`, `<`, `>`), logical (`!`)
+- **Built-in Functions**: `len()`, `first()`, `last()`, `rest()`, `push()`, `puts()`, and `print()`
+- **Operators**: Arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`!`)
 
 ### Compiler Features
 - **Multi-pass Compilation**: Lexical analysis → Parsing → Compilation → VM execution
@@ -65,13 +65,11 @@ let add = fn(x, y) { x + y };
 let result = add(10, 5);
 puts(result);  // Output: 15
 
-let counter = fn() {
-    let count = 0;
-    fn() { count = count + 1; count }
+let make_adder = fn(x) {
+    fn(y) { x + y }
 };
-let increment = counter();
-puts(increment());  // Output: 1
-puts(increment());  // Output: 2
+let add_two = make_adder(2);
+puts(add_two(5));  // Output: 7
 ```
 
 #### Arrays and Hash Maps
@@ -98,21 +96,20 @@ if (x > 5) {
 
 ```
 compiler/
-├── lexer/          # Lexical analysis and tokenization
-├── parser/         # AST construction and parsing
-├── compiler/       # Bytecode compilation
-├── vm/            # Virtual machine implementation
+├── lexer/         # Lexical analysis and tokenization
+├── parser/        # AST construction and parsing
 ├── object/        # Runtime objects and builtins
-└── interpreter/   # Alternative tree-walking interpreter
+├── interpreter/   # Tree-walking evaluator
+└── compiler/      # Bytecode compiler, opcodes, VM, and REPL
 ```
 
 ### Key Components
 
 - **`lexer/`**: Tokenizes source code into a stream of tokens
 - **`parser/`**: Builds an Abstract Syntax Tree (AST) from tokens
-- **`compiler/`**: Compiles AST into bytecode instructions
-- **`vm/`**: Executes bytecode on a stack-based virtual machine
+- **`compiler/`**: Compiles AST into bytecode instructions and executes them on a stack-based VM
 - **`object/`**: Defines runtime objects and built-in functions
+- **`interpreter/`**: Provides a tree-walking interpreter for comparison and testing
 
 ## 🧪 Testing
 

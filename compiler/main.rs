@@ -38,7 +38,9 @@ fn main() {
                 let mut vm = VM::new_with_global_store(bytecodes, globals);
                 match vm.run() {
                     Ok(()) => {
-                        println!("{}", vm.last_popped_stack_elm().unwrap());
+                        if let Some(value) = vm.last_popped_stack_elm() {
+                            println!("{}", value);
+                        }
                     }
                     Err(e) => {
                         println!("VM error: {}", e);

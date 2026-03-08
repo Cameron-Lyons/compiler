@@ -1,4 +1,5 @@
 use object::builtins::BuiltIns;
+use std::fmt;
 use std::rc::Rc;
 
 use object::Object;
@@ -6,7 +7,7 @@ use parser::ast::{BlockStatement, Expression, Integer, Literal, Node, Statement}
 use parser::lexer::token::TokenKind;
 
 use crate::op_code::Opcode::*;
-use crate::op_code::{Instructions, Opcode, cast_u8_to_opcode, make_instructions};
+use crate::op_code::{Instructions, OpCodeError, Opcode, cast_u8_to_opcode, make_instructions};
 use crate::symbol_table::{Symbol, SymbolScope, SymbolTable};
 
 struct CompilationScope {
@@ -49,7 +50,32 @@ pub struct EmittedInstruction {
     pub position: usize,
 }
 
-type CompileError = String;
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CompileError {
+    ExpectedIdentifier,
+    UndefinedVariable(String),
+    UnexpectedPrefixOperator(TokenKind),
+    UnexpectedInfixOperator(TokenKind),
+    ScopeUnderflow,
+    Opcode(OpCodeError),
+}
+
+impl fmt::Display for CompileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompileError::ExpectedIdentifier => write!(f, "expected identifier"),
+            CompileError::UndefinedVariable(name) => write!(f, "undefined variable '{}'", name),
+            CompileError::UnexpectedPrefixOperator(op) => {
+                write!(f, "unexpected prefix op: {}", op)
+            }
+            CompileError::UnexpectedInfixOperator(op) => {
+                write!(f, "unexpected infix op: {}", op)
+            }
+            CompileError::ScopeUnderflow => write!(f, "cannot leave the root compilation scope"),
+            CompileError::Opcode(err) => write!(f, "opcode error: {}", err),
+        }
+    }
+}
 
 impl Default for Compiler {
     fn default() -> Self {
@@ -80,6 +106,9 @@ impl Compiler {
         let mut compiler = Self::new();
         compiler.constants = constants;
         compiler.symbol_table = symbol_table;
+        for (key, value) in BuiltIns.iter().enumerate() {
+            compiler.symbol_table.define_builtin(key, value.0);
+        }
         compiler
     }
 
@@ -106,7 +135,7 @@ impl Compiler {
             Statement::Let(let_statement) => {
                 let name = match &let_statement.identifier.kind {
                     TokenKind::IDENTIFIER { name } => name,
-                    _ => return Err("Expected identifier".to_string()),
+                    _ => return Err(CompileError::ExpectedIdentifier),
                 };
                 self.compile_expr(&let_statement.expr)?;
                 let symbol = self.symbol_table.define(name);
@@ -139,7 +168,7 @@ impl Compiler {
                         self.load_symbol(&symbol);
                     }
                     None => {
-                        return Err(format!("Undefined variable '{}'", identifier.name));
+                        return Err(CompileError::UndefinedVariable(identifier.name.clone()));
                     }
                 }
             }
@@ -188,7 +217,9 @@ impl Compiler {
                         self.emit(OpBang, &[]);
                     }
                     _ => {
-                        return Err(format!("unexpected prefix op: {}", prefix.op));
+                        return Err(CompileError::UnexpectedPrefixOperator(
+                            prefix.op.kind.clone(),
+                        ));
                     }
                 }
             }
@@ -228,7 +259,9 @@ impl Compiler {
                     TokenKind::GT => self.emit(Opcode::OpGreaterThan, &[]),
                     TokenKind::EQ => self.emit(Opcode::OpEqual, &[]),
                     TokenKind::NotEq => self.emit(Opcode::OpNotEqual, &[]),
-                    _ => return Err(format!("unexpected infix op: {}", infix.op)),
+                    _ => {
+                        return Err(CompileError::UnexpectedInfixOperator(infix.op.kind.clone()));
+                    }
                 };
             }
             Expression::IF(if_node) => {
@@ -241,7 +274,7 @@ impl Compiler {
 
                 let jump_pos = self.emit(OpJump, &[Self::PLACEHOLDER_ADDRESS]);
                 let after_consequence_location = self.current_instruction().bytes.len();
-                self.change_operand(jump_not_truthy, after_consequence_location);
+                self.change_operand(jump_not_truthy, after_consequence_location)?;
 
                 if let Some(alternate) = &if_node.alternate {
                     self.compile_block_statement(alternate)?;
@@ -253,7 +286,7 @@ impl Compiler {
                 }
 
                 let after_alternative_location = self.current_instruction().bytes.len();
-                self.change_operand(jump_pos, after_alternative_location);
+                self.change_operand(jump_pos, after_alternative_location)?;
             }
             Expression::While(while_node) => {
                 let loop_start = self.current_instruction().bytes.len();
@@ -262,7 +295,7 @@ impl Compiler {
                 self.compile_block_statement(&while_node.body)?;
                 self.emit(OpJump, &[loop_start]);
                 let after_loop = self.current_instruction().bytes.len();
-                self.change_operand(jump_not_truthy, after_loop);
+                self.change_operand(jump_not_truthy, after_loop)?;
                 self.emit(OpNull, &[]);
             }
             Expression::Index(index) => {
@@ -294,7 +327,7 @@ impl Compiler {
                 }
                 let num_locals = self.symbol_table.num_definitions();
                 let free_symbols = self.symbol_table.free_symbols().to_vec();
-                let instructions = self.leave_scope();
+                let instructions = self.leave_scope()?;
                 for symbol in &free_symbols {
                     self.load_symbol(symbol);
                 }
@@ -414,10 +447,12 @@ impl Compiler {
         self.scopes[self.scope_index].last_instruction.opcode = OpReturnValue;
     }
 
-    fn change_operand(&mut self, pos: usize, operand: usize) {
-        let op = cast_u8_to_opcode(self.current_instruction().bytes[pos]);
+    fn change_operand(&mut self, pos: usize, operand: usize) -> Result<(), CompileError> {
+        let op = cast_u8_to_opcode(self.current_instruction().bytes[pos])
+            .map_err(CompileError::Opcode)?;
         let ins = make_instructions(op, &[operand]);
         self.replace_instruction(pos, &ins);
+        Ok(())
     }
 
     fn current_instruction(&self) -> &Instructions {
@@ -430,12 +465,19 @@ impl Compiler {
         self.symbol_table = SymbolTable::new_enclosed(Rc::new(self.symbol_table.clone()));
     }
 
-    fn leave_scope(&mut self) -> Instructions {
+    fn leave_scope(&mut self) -> Result<Instructions, CompileError> {
+        if self.scope_index == 0 {
+            return Err(CompileError::ScopeUnderflow);
+        }
+
         let instructions = self.current_instruction().clone();
         self.scopes.pop();
         self.scope_index -= 1;
-        self.symbol_table = self.symbol_table.outer().as_ref().unwrap().as_ref().clone();
-        instructions
+        let Some(outer) = self.symbol_table.outer() else {
+            return Err(CompileError::ScopeUnderflow);
+        };
+        self.symbol_table = outer.as_ref().clone();
+        Ok(instructions)
     }
 
     fn is_tail_recursive_call(&self, body: &BlockStatement, name: &str) -> bool {

@@ -97,7 +97,7 @@ expression: "while (x < 5) { x }"
     },
     "span": {
       "start": 19,
-      "end": 20
+      "end": 19
     }
   }
 ]

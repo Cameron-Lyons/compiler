@@ -14,7 +14,13 @@ pub fn main() {
 
         let lexer = Lexer::new(&input);
         let mut parser = Parser::new(lexer);
-        let program = parser.parse_program().unwrap();
-        println!("{}", program);
+        match parser.parse_program() {
+            Ok(program) => println!("{}", program),
+            Err(errors) => {
+                for error in errors {
+                    eprintln!("parse error: {}", error);
+                }
+            }
+        }
     }
 }

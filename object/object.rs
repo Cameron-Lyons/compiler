@@ -6,6 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use parser::ast::{BlockStatement, IDENTIFIER};
+use parser::lexer::token::TokenKind;
 
 #[macro_use]
 extern crate lazy_static;
@@ -15,7 +16,6 @@ use crate::environment::Env;
 pub mod builtins;
 pub mod environment;
 
-pub type EvalError = String;
 pub type BuiltinFunc = fn(Vec<Rc<Object>>) -> Rc<Object>;
 
 /// Immutable key type for hash maps. Only hashable variants to satisfy clippy::mutable_key_type.
@@ -45,6 +45,74 @@ impl TryFrom<&Object> for HashKey {
             Object::Boolean(b) => Ok(HashKey::Boolean(*b)),
             Object::String(s) => Ok(HashKey::String(s.clone())),
             _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum EvalError {
+    InvalidHashKey,
+    UnsupportedIndexOperator(String),
+    WrongArity {
+        expected: usize,
+        got: usize,
+    },
+    NotFunction(String),
+    UnknownIdentifier(String),
+    UnknownPrefixOperator(TokenKind),
+    CannotApplyPrefixMinus(String),
+    InfixTypeMismatch {
+        op: TokenKind,
+        left: String,
+        right: String,
+    },
+    InvalidIntegerOperator(TokenKind),
+    InvalidBooleanOperator(TokenKind),
+    InvalidStringOperator(TokenKind),
+    KeyNotHashable(String),
+}
+
+impl fmt::Display for EvalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            EvalError::InvalidHashKey => write!(f, "not a valid hash key"),
+            EvalError::UnsupportedIndexOperator(value) => {
+                write!(f, "index operator not supported for {}", value)
+            }
+            EvalError::WrongArity { expected, got } => {
+                write!(
+                    f,
+                    "wrong number of arguments: want={}, got={}",
+                    expected, got
+                )
+            }
+            EvalError::NotFunction(value) => write!(f, "expected {} to be a function", value),
+            EvalError::UnknownIdentifier(identifier) => {
+                write!(f, "unknown identifier {}", identifier)
+            }
+            EvalError::UnknownPrefixOperator(op) => {
+                write!(f, "unknown prefix operator: {}", op)
+            }
+            EvalError::CannotApplyPrefixMinus(value) => {
+                write!(f, "can't apply prefix minus operator: {}", value)
+            }
+            EvalError::InfixTypeMismatch { op, left, right } => {
+                write!(
+                    f,
+                    "eval infix error for op: {}, left: {}, right: {}",
+                    op, left, right
+                )
+            }
+            EvalError::InvalidIntegerOperator(op) => {
+                write!(f, "Invalid infix operator {} for int", op)
+            }
+            EvalError::InvalidBooleanOperator(op) => {
+                write!(f, "Invalid infix operator for boolean: {}", op)
+            }
+            EvalError::InvalidStringOperator(op) => {
+                write!(f, "Invalid infix {} operator for string", op)
+            }
+            EvalError::KeyNotHashable(value) => write!(f, "key {} is not hashable", value),
         }
     }
 }

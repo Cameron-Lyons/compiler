@@ -98,7 +98,7 @@ mod tests {
             [sum.as_slice(), i.bytes.as_slice()].concat()
         });
 
-        let concatted = Instructions { bytes: merged_ins }.string();
+        let concatted = Instructions { bytes: merged_ins }.string().unwrap();
 
         assert_eq!(concatted, expected);
     }

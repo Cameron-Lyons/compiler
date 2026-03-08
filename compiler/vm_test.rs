@@ -16,7 +16,7 @@ pub fn run_vm_tests(tests: Vec<VmTestCase>) {
         let bytecodes = compiler.compile(&program).unwrap();
         println!(
             "ins {} for input {}",
-            bytecodes.instructions.string(),
+            bytecodes.instructions.string().unwrap(),
             t.input
         );
         let mut vm = VM::new(bytecodes);
