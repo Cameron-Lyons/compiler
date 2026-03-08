@@ -102,4 +102,56 @@ mod tests {
 
         assert_eq!(concatted, expected);
     }
+
+    #[test]
+    fn test_make_reports_operand_count_mismatch() {
+        let err = make(OpAdd, &[1]).unwrap_err();
+
+        assert!(matches!(
+            err,
+            OpCodeError::OperandCountMismatch {
+                expected: 0,
+                got: 1,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_make_reports_out_of_range_operands() {
+        let err = make(OpGetLocal, &[256]).unwrap_err();
+
+        assert!(matches!(
+            err,
+            OpCodeError::OperandOutOfRange {
+                operand: 256,
+                width: 1,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_read_operands_reports_truncated_input() {
+        let err = read_operands(definitions().get(&OpConst).unwrap(), &[255]).unwrap_err();
+
+        assert!(matches!(
+            err,
+            OpCodeError::TruncatedOperands {
+                expected: 2,
+                available: 1,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_disassemble_reports_invalid_opcode_byte() {
+        let err = Instructions { bytes: vec![255] }.string().unwrap_err();
+
+        assert!(matches!(
+            err,
+            OpCodeError::InvalidOpcodeByte {
+                byte: 255,
+                position: Some(0),
+            }
+        ));
+    }
 }
