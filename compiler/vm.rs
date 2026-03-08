@@ -59,9 +59,15 @@ impl Value {
                 Object::String(_) => "STRING",
                 Object::Array(_) => "ARRAY",
                 Object::Hash(_) => "HASH",
+                Object::Function(_, _, _) => "FUNCTION",
                 Object::ClosureObj(_) => "CLOSURE",
                 Object::Builtin(_) => "BUILTIN",
-                _ => "OBJECT",
+                Object::CompiledFunction(_) => "COMPILED_FUNCTION",
+                Object::ReturnValue(_) => "RETURN_VALUE",
+                Object::Error(_) => "ERROR",
+                Object::Integer(_) => "INTEGER",
+                Object::Boolean(_) => "BOOLEAN",
+                Object::Null => "NULL",
             },
         }
     }
@@ -83,10 +89,28 @@ pub enum VMError {
     StackOverflow,
     FrameOverflow,
     Opcode(OpCodeError),
-    TypeError(String),
-    WrongArity { expected: usize, got: usize },
-    NotCallable(String),
-    IndexError(String),
+    UnknownBuiltinIndex(usize),
+    UnknownIntegerOperator(Opcode),
+    UnsupportedBinaryOperation {
+        op: Opcode,
+        left: &'static str,
+        right: &'static str,
+    },
+    UnknownComparisonOperator(Opcode),
+    UnknownBooleanComparisonOperator(Opcode),
+    UnsupportedComparison {
+        left: &'static str,
+        right: &'static str,
+    },
+    UnsupportedNegation(&'static str),
+    WrongArity {
+        expected: usize,
+        got: usize,
+    },
+    NotCallable(&'static str),
+    UnsupportedIndexOperator(&'static str),
+    UnusableAsHashKey(String),
+    ExpectedCompiledFunction(&'static str),
 }
 
 impl fmt::Display for VMError {
@@ -95,7 +119,33 @@ impl fmt::Display for VMError {
             VMError::StackOverflow => write!(f, "stack overflow"),
             VMError::FrameOverflow => write!(f, "frame overflow"),
             VMError::Opcode(err) => write!(f, "opcode error: {}", err),
-            VMError::TypeError(msg) => write!(f, "type error: {}", msg),
+            VMError::UnknownBuiltinIndex(index) => {
+                write!(f, "type error: unknown builtin index {}", index)
+            }
+            VMError::UnknownIntegerOperator(op) => {
+                write!(f, "type error: unknown integer operator: {:?}", op)
+            }
+            VMError::UnsupportedBinaryOperation { op, left, right } => write!(
+                f,
+                "type error: unsupported binary operation {:?} for {} and {}",
+                op, left, right
+            ),
+            VMError::UnknownComparisonOperator(op) => {
+                write!(f, "type error: unknown comparison operator: {:?}", op)
+            }
+            VMError::UnknownBooleanComparisonOperator(op) => write!(
+                f,
+                "type error: unknown boolean comparison operator: {:?}",
+                op
+            ),
+            VMError::UnsupportedComparison { left, right } => write!(
+                f,
+                "type error: unsupported comparison for {} and {}",
+                left, right
+            ),
+            VMError::UnsupportedNegation(value_type) => {
+                write!(f, "type error: unsupported negation for {}", value_type)
+            }
             VMError::WrongArity { expected, got } => {
                 write!(
                     f,
@@ -103,8 +153,20 @@ impl fmt::Display for VMError {
                     expected, got
                 )
             }
-            VMError::NotCallable(msg) => write!(f, "not callable: {}", msg),
-            VMError::IndexError(msg) => write!(f, "index error: {}", msg),
+            VMError::NotCallable(value_type) => write!(f, "not callable: {}", value_type),
+            VMError::UnsupportedIndexOperator(value_type) => {
+                write!(
+                    f,
+                    "index error: index operator not supported for {}",
+                    value_type
+                )
+            }
+            VMError::UnusableAsHashKey(value) => {
+                write!(f, "index error: unusable as hash key: {}", value)
+            }
+            VMError::ExpectedCompiledFunction(value_type) => {
+                write!(f, "type error: not a function: {}", value_type)
+            }
         }
     }
 }
@@ -298,9 +360,7 @@ impl VM {
                     self.current_frame().ip += 1;
                     let definition = BuiltIns
                         .get(built_index)
-                        .ok_or_else(|| {
-                            VMError::TypeError(format!("unknown builtin index {}", built_index))
-                        })?
+                        .ok_or(VMError::UnknownBuiltinIndex(built_index))?
                         .1;
                     self.push(Value::Object(Rc::new(Object::Builtin(definition))))?;
                 }
@@ -337,35 +397,28 @@ impl VM {
                     Opcode::OpMul => l * r,
                     Opcode::OpDiv => l / r,
                     Opcode::OpModulo => l % r,
-                    _ => {
-                        return Err(VMError::TypeError(format!(
-                            "unknown integer operator: {:?}",
-                            opcode
-                        )));
-                    }
+                    _ => return Err(VMError::UnknownIntegerOperator(opcode)),
                 };
                 self.push(Value::Integer(result))
             }
             (Value::Object(l), Value::Object(r)) => {
-                if let (Object::String(ls), Object::String(rs)) = (&**l, &**r) {
-                    if opcode == Opcode::OpAdd {
-                        let result = ls.to_string() + rs;
-                        return self.push(Value::Object(Rc::new(Object::String(result))));
-                    }
+                if let (Object::String(ls), Object::String(rs)) = (&**l, &**r)
+                    && opcode == Opcode::OpAdd
+                {
+                    let result = ls.to_string() + rs;
+                    return self.push(Value::Object(Rc::new(Object::String(result))));
                 }
-                Err(VMError::TypeError(format!(
-                    "unsupported binary operation {:?} for {} and {}",
-                    opcode,
-                    left.type_name(),
-                    right.type_name()
-                )))
+                Err(VMError::UnsupportedBinaryOperation {
+                    op: opcode,
+                    left: left.type_name(),
+                    right: right.type_name(),
+                })
             }
-            _ => Err(VMError::TypeError(format!(
-                "unsupported binary operation {:?} for {} and {}",
-                opcode,
-                left.type_name(),
-                right.type_name()
-            ))),
+            _ => Err(VMError::UnsupportedBinaryOperation {
+                op: opcode,
+                left: left.type_name(),
+                right: right.type_name(),
+            }),
         }
     }
 
@@ -378,12 +431,7 @@ impl VM {
                     Opcode::OpEqual => l == r,
                     Opcode::OpNotEqual => l != r,
                     Opcode::OpGreaterThan => l > r,
-                    _ => {
-                        return Err(VMError::TypeError(format!(
-                            "unknown comparison operator: {:?}",
-                            opcode
-                        )));
-                    }
+                    _ => return Err(VMError::UnknownComparisonOperator(opcode)),
                 };
                 self.push(Value::Boolean(result))
             }
@@ -391,20 +439,14 @@ impl VM {
                 let result = match opcode {
                     Opcode::OpEqual => l == r,
                     Opcode::OpNotEqual => l != r,
-                    _ => {
-                        return Err(VMError::TypeError(format!(
-                            "unknown boolean comparison operator: {:?}",
-                            opcode
-                        )));
-                    }
+                    _ => return Err(VMError::UnknownBooleanComparisonOperator(opcode)),
                 };
                 self.push(Value::Boolean(result))
             }
-            _ => Err(VMError::TypeError(format!(
-                "unsupported comparison for {} and {}",
-                left.type_name(),
-                right.type_name()
-            ))),
+            _ => Err(VMError::UnsupportedComparison {
+                left: left.type_name(),
+                right: right.type_name(),
+            }),
         }
     }
 
@@ -412,10 +454,7 @@ impl VM {
         let operand = self.pop();
         match &operand {
             Value::Integer(l) => self.push(Value::Integer(-*l)),
-            _ => Err(VMError::TypeError(format!(
-                "unsupported negation for {}",
-                operand.type_name()
-            ))),
+            _ => Err(VMError::UnsupportedNegation(operand.type_name())),
         }
     }
 
@@ -463,7 +502,7 @@ impl VM {
         for i in (start..end).step_by(2) {
             let key = self.stack[i].into_rc_object();
             let hash_key = HashKey::try_from(key.as_ref())
-                .map_err(|()| VMError::IndexError(format!("unusable as hash key: {}", key)))?;
+                .map_err(|()| VMError::UnusableAsHashKey(key.to_string()))?;
             let value = self.stack[i + 1].into_rc_object();
             elements.insert(hash_key, value);
         }
@@ -475,22 +514,13 @@ impl VM {
             (Value::Object(o), Value::Integer(i)) => match &**o {
                 Object::Array(arr) => self.execute_array_index(arr, *i),
                 Object::Hash(hash) => self.execute_hash_index(hash, index.into_rc_object()),
-                _ => Err(VMError::IndexError(format!(
-                    "index operator not supported for {}",
-                    left.type_name()
-                ))),
+                _ => Err(VMError::UnsupportedIndexOperator(left.type_name())),
             },
             (Value::Object(o), _) => match &**o {
                 Object::Hash(hash) => self.execute_hash_index(hash, index.into_rc_object()),
-                _ => Err(VMError::IndexError(format!(
-                    "index operator not supported for {}",
-                    left.type_name()
-                ))),
+                _ => Err(VMError::UnsupportedIndexOperator(left.type_name())),
             },
-            _ => Err(VMError::IndexError(format!(
-                "index operator not supported for {}",
-                left.type_name()
-            ))),
+            _ => Err(VMError::UnsupportedIndexOperator(left.type_name())),
         }
     }
 
@@ -512,10 +542,7 @@ impl VM {
                 Some(el) => self.push(Value::from_object(Rc::clone(el))),
                 None => self.push(Value::Null),
             },
-            Err(()) => Err(VMError::IndexError(format!(
-                "unusable as hash key: {}",
-                index
-            ))),
+            Err(()) => Err(VMError::UnusableAsHashKey(index.to_string())),
         }
     }
 
@@ -544,9 +571,9 @@ impl VM {
             Value::Object(o) => match &**o {
                 Object::ClosureObj(cf) => self.call_closure(cf.clone(), num_args),
                 Object::Builtin(bt) => self.call_builtin(*bt, num_args),
-                _ => Err(VMError::NotCallable(callee.type_name().to_string())),
+                _ => Err(VMError::NotCallable(callee.type_name())),
             },
-            _ => Err(VMError::NotCallable(callee.type_name().to_string())),
+            _ => Err(VMError::NotCallable(callee.type_name())),
         }
     }
 
@@ -589,15 +616,9 @@ impl VM {
                     });
                     self.push(Value::Object(Rc::new(closure)))
                 }
-                _ => Err(VMError::TypeError(format!(
-                    "not a function: {}",
-                    constant.type_name()
-                ))),
+                _ => Err(VMError::ExpectedCompiledFunction(constant.type_name())),
             },
-            _ => Err(VMError::TypeError(format!(
-                "not a function: {}",
-                constant.type_name()
-            ))),
+            _ => Err(VMError::ExpectedCompiledFunction(constant.type_name())),
         }
     }
 

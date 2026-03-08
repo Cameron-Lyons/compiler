@@ -1,6 +1,6 @@
 use crate::compiler::Compiler;
 use crate::compiler_test::test_constants;
-use crate::vm::VM;
+use crate::vm::{VM, VMError};
 use object::Object;
 use parser::parse;
 
@@ -27,13 +27,24 @@ pub fn run_vm_tests(tests: Vec<VmTestCase>) {
     }
 }
 
+pub fn run_vm_error_test(input: &str) -> VMError {
+    let program = parse(input).unwrap();
+    let mut compiler = Compiler::new();
+    let bytecodes = compiler.compile(&program).unwrap();
+    let mut vm = VM::new(bytecodes);
+    vm.run().unwrap_err()
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::compiler::Bytecode;
+    use crate::op_code::Opcode::{OpClosure, OpGetBuiltin, OpGreaterThan, OpSub};
+    use crate::op_code::{Instructions, OpCodeError, make_instructions};
+    use crate::vm::{VM, VMError};
+    use crate::vm_test::{VmTestCase, run_vm_error_test, run_vm_tests};
     use object::{HashKey, Object};
     use std::collections::HashMap;
     use std::rc::Rc;
-
-    use crate::vm_test::{VmTestCase, run_vm_tests};
 
     #[test]
     fn test_integer_arithmetic() {
@@ -217,6 +228,85 @@ mod tests {
         ];
 
         run_vm_tests(tests);
+    }
+
+    #[test]
+    fn test_runtime_error_variants_from_source() {
+        assert!(matches!(
+            run_vm_error_test("fn(a) { a }();"),
+            VMError::WrongArity {
+                expected: 1,
+                got: 0,
+            }
+        ));
+        assert!(matches!(
+            run_vm_error_test("1();"),
+            VMError::NotCallable("INTEGER")
+        ));
+        assert!(matches!(
+            run_vm_error_test("-true;"),
+            VMError::UnsupportedNegation("BOOLEAN")
+        ));
+        assert!(matches!(
+            run_vm_error_test("1 - true;"),
+            VMError::UnsupportedBinaryOperation {
+                op: OpSub,
+                left: "INTEGER",
+                right: "BOOLEAN",
+            }
+        ));
+        assert!(matches!(
+            run_vm_error_test("1 == true;"),
+            VMError::UnsupportedComparison {
+                left: "INTEGER",
+                right: "BOOLEAN",
+            }
+        ));
+        assert!(matches!(
+            run_vm_error_test("true > false;"),
+            VMError::UnknownBooleanComparisonOperator(OpGreaterThan)
+        ));
+        assert!(matches!(
+            run_vm_error_test("1[0];"),
+            VMError::UnsupportedIndexOperator("INTEGER")
+        ));
+        assert!(matches!(
+            run_vm_error_test("{[1]: 2};"),
+            VMError::UnusableAsHashKey(key) if key == "[1]"
+        ));
+    }
+
+    #[test]
+    fn test_runtime_error_variants_from_invalid_bytecode() {
+        let mut invalid_opcode_vm = VM::new(Bytecode {
+            instructions: Instructions { bytes: vec![255] },
+            constants: vec![],
+        });
+        assert!(matches!(
+            invalid_opcode_vm.run().unwrap_err(),
+            VMError::Opcode(OpCodeError::InvalidOpcodeByte {
+                byte: 255,
+                position: None,
+            })
+        ));
+
+        let mut invalid_builtin_vm = VM::new(Bytecode {
+            instructions: make_instructions(OpGetBuiltin, &[255]),
+            constants: vec![],
+        });
+        assert!(matches!(
+            invalid_builtin_vm.run().unwrap_err(),
+            VMError::UnknownBuiltinIndex(255)
+        ));
+
+        let mut invalid_closure_vm = VM::new(Bytecode {
+            instructions: make_instructions(OpClosure, &[0, 0]),
+            constants: vec![Rc::new(Object::Integer(1))],
+        });
+        assert!(matches!(
+            invalid_closure_vm.run().unwrap_err(),
+            VMError::ExpectedCompiledFunction("INTEGER")
+        ));
     }
 
     #[test]

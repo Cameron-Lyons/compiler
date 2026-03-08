@@ -2,7 +2,7 @@
 
 A complete implementation of the Monkey programming language compiler and virtual machine, written in Rust. This project is based on Thorsten Ball's excellent book "Writing a Compiler in Go" but reimagined in Rust with modern language features and improved performance.
 
-## 🐒 What is Monkey?
+## What is Monkey?
 
 Monkey is a simple but powerful programming language designed for learning compiler construction. It features:
 
@@ -12,7 +12,7 @@ Monkey is a simple but powerful programming language designed for learning compi
 - **Virtual Machine**: Stack-based VM with support for functions, closures, and builtins
 - **Memory Management**: Automatic memory management with Rust's ownership system
 
-## ✨ Features
+## Features
 
 ### Language Features
 - **Primitive Types**: Integers, Booleans, Strings, Arrays, and Hash Maps
@@ -27,7 +27,7 @@ Monkey is a simple but powerful programming language designed for learning compi
 - **Bytecode Generation**: Optimized instruction set with constant folding
 - **Error Handling**: Comprehensive error reporting and recovery
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Rust 1.70+ and Cargo
@@ -92,7 +92,7 @@ if (x > 5) {
 }
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 compiler/
@@ -111,7 +111,7 @@ compiler/
 - **`object/`**: Defines runtime objects and built-in functions
 - **`interpreter/`**: Provides a tree-walking interpreter for comparison and testing
 
-## 🧪 Testing
+## Testing
 
 Run the test suite:
 
@@ -126,7 +126,7 @@ The project includes comprehensive tests for:
 - Virtual machine execution
 - Built-in functions
 
-## 🔧 Development
+## Development
 
 ### Building from Source
 
@@ -159,13 +159,13 @@ This project follows Rust conventions:
 - Follow Rust naming conventions
 - Document public APIs with doc comments
 
-## 📚 Learning Resources
+## Learning Resources
 
 - **Original Book**: [Writing a Compiler in Go](https://compilerbook.com/) by Thorsten Ball
 - **Rust Documentation**: [The Rust Programming Language](https://doc.rust-lang.org/book/)
 - **Compiler Theory**: [Crafting Interpreters](https://craftinginterpreters.com/) by Robert Nystrom
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -177,11 +177,11 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Thorsten Ball** for the original Go implementation and excellent book
 - **The Rust Community** for the amazing language and ecosystem
@@ -189,4 +189,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Happy coding! 🦀🐒**
+**Happy coding!**

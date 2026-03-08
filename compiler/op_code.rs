@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::io::{Cursor, Read};
 use std::sync::OnceLock;
 use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
@@ -12,7 +11,7 @@ pub enum OpCodeError {
     OperandCountMismatch { expected: usize, got: usize },
     OperandOutOfRange { operand: usize, width: usize },
     UnsupportedOperandWidth(usize),
-    OperandRead(String),
+    TruncatedOperands { expected: usize, available: usize },
 }
 
 impl Display for OpCodeError {
@@ -41,7 +40,16 @@ impl Display for OpCodeError {
             OpCodeError::UnsupportedOperandWidth(width) => {
                 write!(f, "unsupported operand width: {}", width)
             }
-            OpCodeError::OperandRead(err) => write!(f, "failed to read operands: {}", err),
+            OpCodeError::TruncatedOperands {
+                expected,
+                available,
+            } => {
+                write!(
+                    f,
+                    "truncated operands: expected {} byte(s), only {} available",
+                    expected, available
+                )
+            }
         }
     }
 }
@@ -186,27 +194,27 @@ pub fn make(op: Opcode, operands: &[usize]) -> Result<Instructions, OpCodeError>
 
 pub fn read_operands(
     def: &OpcodeDefinition,
-    mut bytes: &[u8],
+    bytes: &[u8],
 ) -> Result<(Vec<usize>, usize), OpCodeError> {
     let mut operands = Vec::with_capacity(def.operand_widths.len());
     let mut bytes_read = 0;
 
     for &width in def.operand_widths {
+        if bytes.len() < bytes_read + width {
+            return Err(OpCodeError::TruncatedOperands {
+                expected: width,
+                available: bytes.len().saturating_sub(bytes_read),
+            });
+        }
+
         match width {
             2 => {
-                let mut buf = [0u8; 2];
-                bytes
-                    .read_exact(&mut buf)
-                    .map_err(|e| OpCodeError::OperandRead(e.to_string()))?;
+                let buf = [bytes[bytes_read], bytes[bytes_read + 1]];
                 operands.push(u16::from_be_bytes(buf) as usize);
                 bytes_read += 2;
             }
             1 => {
-                let mut buf = [0u8; 1];
-                bytes
-                    .read_exact(&mut buf)
-                    .map_err(|e| OpCodeError::OperandRead(e.to_string()))?;
-                operands.push(buf[0] as usize);
+                operands.push(bytes[bytes_read] as usize);
                 bytes_read += 1;
             }
             0 => operands.push(0), // For 0-width operands
@@ -226,10 +234,10 @@ impl Instructions {
 
     pub fn disassemble(&self) -> Result<String, OpCodeError> {
         let mut output = String::new();
-        let mut cursor = Cursor::new(&self.bytes);
+        let mut pos = 0;
 
-        while let Ok(op) = cursor.read_u8() {
-            let pos = cursor.position() as usize - 1;
+        while pos < self.bytes.len() {
+            let op = self.bytes[pos];
             let opcode = cast_u8_to_opcode_at(op, pos)?;
 
             let def = definitions()
@@ -240,7 +248,7 @@ impl Instructions {
 
             output.push_str(&format!("{:04} {}\n", pos, def.display(&operands)));
 
-            cursor.set_position((pos + 1 + read) as u64);
+            pos += 1 + read;
         }
 
         Ok(output)
@@ -289,16 +297,6 @@ impl OpcodeDefinition {
         }
     }
 }
-
-trait ReadExt: Read {
-    fn read_u8(&mut self) -> Result<u8, std::io::Error> {
-        let mut buf = [0u8; 1];
-        self.read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-}
-
-impl<R: Read> ReadExt for R {}
 
 impl TryFrom<u8> for Opcode {
     type Error = OpCodeError;
