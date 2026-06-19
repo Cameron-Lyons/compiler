@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/compiler"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/interpreter"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/lexer"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/object"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/parser"
+    schedule:
+      interval: "weekly"
