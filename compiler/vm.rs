@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-use byteorder::{BigEndian, ByteOrder};
 use object::builtins::BuiltIns;
 
 use object::{Closure, HashKey, Object};
@@ -638,6 +637,7 @@ impl VM {
     fn read_u16_operand(&mut self, offset: usize) -> usize {
         let ip = self.current_frame().ip as usize;
         let frame = self.current_frame();
-        BigEndian::read_u16(&frame.instructions()[ip + offset..ip + offset + 2]) as usize
+        let bytes = &frame.instructions()[ip + offset..ip + offset + 2];
+        u16::from_be_bytes([bytes[0], bytes[1]]) as usize
     }
 }
