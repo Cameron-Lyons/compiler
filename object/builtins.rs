@@ -1,17 +1,19 @@
 use crate::{BuiltinFunc, Object};
 use std::rc::Rc;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref BuiltIns: Vec<(&'static str, BuiltinFunc)> = vec![
+#[allow(non_upper_case_globals)]
+pub static BuiltIns: LazyLock<Vec<(&'static str, BuiltinFunc)>> = LazyLock::new(|| {
+    vec![
         ("len", len),
         ("puts", puts),
         ("first", first),
         ("last", last),
         ("rest", rest),
         ("push", push),
-        ("print", puts)
-    ];
-}
+        ("print", puts),
+    ]
+});
 
 fn wrong_arity(name: &str, expected: usize, got: usize) -> Rc<Object> {
     Rc::new(Object::Error(format!(

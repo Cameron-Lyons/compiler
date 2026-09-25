@@ -8,9 +8,6 @@ use std::rc::Rc;
 use parser::ast::{BlockStatement, IDENTIFIER};
 use parser::lexer::token::TokenKind;
 
-#[macro_use]
-extern crate lazy_static;
-
 use crate::environment::Env;
 
 pub mod builtins;
