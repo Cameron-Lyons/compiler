@@ -485,11 +485,10 @@ impl VM {
     }
 
     fn build_array(&self, start: usize, end: usize) -> Vec<Rc<Object>> {
-        let mut elements = Vec::with_capacity(end - start);
-        for i in start..end {
-            elements.push(self.stack[i].into_rc_object());
-        }
-        elements
+        self.stack[start..end]
+            .iter()
+            .map(|value| value.into_rc_object())
+            .collect()
     }
 
     fn build_hash(
